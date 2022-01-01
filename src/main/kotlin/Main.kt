@@ -1,3 +1,4 @@
 fun main(args: Array<String>) {
-    println("Hello World!")
+    println("HI")
+    var Graph = OpenStreetMap("maps/cyclable.osm.pbf")
 }
