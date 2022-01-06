@@ -8,6 +8,7 @@ plugins {
     java
     `maven-publish`
     kotlin("jvm") version "1.6.10"
+    kotlin("plugin.serialization") version "1.6.10"
 }
 
 repositories {
@@ -23,10 +24,11 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.10")
-    implementation("com.wolt.osm:parallelpbf:0.3.1")
     implementation("org.json:json:20211205")
-    implementation("com.github.davidmoten:rtree2:0.9-RC1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.3.2")
+    implementation("com.github.davidmoten:rtree2:0.9-RC1")
+    implementation("org.dom4j:dom4j:2.1.3")
+    implementation("io.jenetics:jpx:2.0.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:1.6.10")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.8.2")
 }

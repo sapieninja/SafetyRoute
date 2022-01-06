@@ -1,3 +1,3 @@
 fun main(args: Array<String>) {
-    var Graph = OpenStreetMap("maps/cyclable.osm.pbf")
+    var Graph = OpenStreetMap("maps/ways.osm")
 }
