@@ -48,20 +48,31 @@ class GeographicGraph {
         var accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
         var counter = 0
         for (accident in accidents) {
+            counter += 1
+            if(counter%1000 == 10)
+            {
+                println(counter)
+            }
             var parsedAccident = accident.toString().split(",")//hacky but will work
             var latitude = parsedAccident[0].substring(1).toDouble()
             var longitude = parsedAccident[1].toDouble()
             var severity = parsedAccident[2].substring(1, parsedAccident[2].length - 2)
-            var accidentWayObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.01, 1)
-            if (accidentWayObserver.first().value() != null) {
-                var additionNode = vertices[accidentWayObserver.first().value()]
-                if (additionNode != null) {
-                    when (severity) {
-                        "Slight" -> additionNode.weight += 1
-                        "Severe" -> additionNode.weight += 2
-                        "Fatal" -> additionNode.weight +=  3
+            try {
+                var accidentWayObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.01, 1)
+                if (accidentWayObserver.first().value() != null) {
+                    var additionNode = vertices[accidentWayObserver.first().value()]
+                    if (additionNode != null) {
+                        when (severity) {
+                            "Slight" -> additionNode.weight += 1
+                            "Severe" -> additionNode.weight += 2
+                            "Fatal" -> additionNode.weight += 3
+                        }
                     }
                 }
+            }
+            catch(e : NoSuchElementException)
+            {
+                println("caught error")
             }
         }
     }
@@ -122,9 +133,35 @@ class GeographicGraph {
         var after = vertices.size
         println("Shrunk vertices from $before to $after")
     }
+    fun getTurnCost(prev: Long, current: Long, next: Long) : Double
+    {
+        if(prev.toInt()==-1) return 0.0
+        var prevNode = vertices[prev]
+        var currentNode = vertices[current]
+        var nextNode = vertices[next]
+        val a = prevNode?.longitude!!
+        val b = prevNode?.latitude!!
+        val c = currentNode?.longitude!!
+        val d = currentNode?.latitude!!
+        val e = nextNode?.longitude!!
+        val f = nextNode?.latitude!!
+        var top =  (c-a)*(e-c)+(d-b)*(f-d)
+        val bottomOne = Math.sqrt((c-a)*(c-a)+(d-b)*(d-b))
+        val bottomTwo = Math.sqrt((e-c)*(e-c)+(f-d)*(f-d))
+        val angle = Math.toDegrees(Math.acos(top/(bottomOne*bottomTwo)))
+        if (angle < 100.0)
+        {
+            println(angle)
+            return 15.0
+        }
+        else
+        {
+            return 0.0
+        }
+    }
 
     /**
-     * Basic djikstra in an infinite graph implementation
+     * Basic A* with priority Queuing implementation
      */
     fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double): MutableList<Long> {
         class DistTuple(val id : Long, val dist : Double) : Comparable<DistTuple>
@@ -167,6 +204,7 @@ class GeographicGraph {
             for (neighbour in vertices[u]?.connections!!) {
                 var alt = dist[u]?.plus(vertices[neighbour]?.weight!!)
                 alt = alt?.plus(getDistance(u,neighbour)*accidentsPerKilometre)
+                alt = alt?.plus(getTurnCost(prev[u]!!,u,neighbour))
                 if (alt != null) {
                     if (alt < dist[neighbour]!!) {
                         dist[neighbour] = alt
@@ -180,3 +218,4 @@ class GeographicGraph {
         throw InvalidParameterException()
     }
 }
+

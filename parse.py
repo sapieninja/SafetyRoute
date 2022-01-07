@@ -1,7 +1,7 @@
 import json
 #we want to parse for accidents that happened to cyclists and store the severity and the location
 accidents = []
-for year in range(2005,2020):
+for year in range(2010,2020):
     print(len(accidents), year)
     with open(f"accidents/{year}.json","r") as outfile:
         data = json.load(outfile)
