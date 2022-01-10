@@ -7,6 +7,8 @@ import java.io.File
 import java.security.InvalidParameterException
 import java.util.*
 import kotlin.collections.HashMap
+import kotlin.math.acos
+import kotlin.math.pow
 
 
 /**
@@ -19,15 +21,13 @@ import kotlin.collections.HashMap
 @Serializable
 class GeographicGraph {
     var vertices: HashMap<Long, GeographicNode> = HashMap()
+    var safeNodes = HashSet<Long>() //nodes that are known to be safe
 
     @Serializable
     class GeographicNode(val longitude: Double, val latitude: Double) {
         var weight: Double = 0.0
         var connections = HashSet<Long>()
     }
-
-    @Serializable
-    class GeographicWay(val first: GeographicNode, val second: GeographicNode)
 
     fun addEdge(first: Long, second: Long,oneWay : Boolean) {
         val geographicFirst = vertices[first]
@@ -44,23 +44,18 @@ class GeographicGraph {
      * This function reads in the accident data, then adds it as a weight to all nodes.
      */
     fun gatherWeights(nodeTree: RTree<Long, Geometry>) {
-        var accidentFile: File = File("output.json")
-        var accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
+        val accidentFile = File("output.json")
+        val accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
         var counter = 0
         for (accident in accidents) {
-            counter += 1
-            if(counter%1000 == 10)
-            {
-                println(counter)
-            }
-            var parsedAccident = accident.toString().split(",")//hacky but will work
-            var latitude = parsedAccident[0].substring(1).toDouble()
-            var longitude = parsedAccident[1].toDouble()
-            var severity = parsedAccident[2].substring(1, parsedAccident[2].length - 2)
+            val parsedAccident = accident.toString().split(",")//hacky but will work
+            val latitude = parsedAccident[0].substring(1).toDouble()
+            val longitude = parsedAccident[1].toDouble()
+            val severity = parsedAccident[2].substring(1, parsedAccident[2].length - 2)
             try {
-                var accidentWayObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.01, 1)
+                val accidentWayObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.01, 1)
                 if (accidentWayObserver.first().value() != null) {
-                    var additionNode = vertices[accidentWayObserver.first().value()]
+                    val additionNode = vertices[accidentWayObserver.first().value()]
                     if (additionNode != null) {
                         when (severity) {
                             "Slight" -> additionNode.weight += 1
@@ -72,15 +67,15 @@ class GeographicGraph {
             }
             catch(e : NoSuchElementException)
             {
-                println("caught error")
+                continue
             }
         }
     }
 
-    fun solution(start: Long, end: Long, prev: HashMap<Long, Long>): MutableList<Long> {
-        var route = mutableListOf<Long>()
+    fun solution(end: Long, prev: HashMap<Long, Long>): MutableList<Long> {
+        val route = mutableListOf<Long>()
         var current = end
-        while (current != start) {
+        while (current.toInt() != -1) {
             route.add(current)
             current = prev[current]!!
         }
@@ -88,12 +83,16 @@ class GeographicGraph {
     }
 
     fun getDistance(idOne: Long, idTwo : Long): Double {
-        var first = vertices[idOne]
-        var second = vertices[idTwo]
-        var lonOne = first?.longitude!!
-        var latOne = first?.latitude!!
-        var lonTwo = second?.longitude!!
-        var latTwo = second?.latitude!!
+        val first = vertices[idOne]
+        val second = vertices[idTwo]
+        val lonOne = first?.longitude!!
+        val latOne = first.latitude
+        val lonTwo = second?.longitude!!
+        val latTwo = second.latitude
+        if (safeNodes.contains(idOne) && safeNodes.contains(idTwo))
+        {
+            return getDistance(lonOne,latOne,lonTwo,latTwo) * 0.9
+        }
         return getDistance(lonOne,latOne,lonTwo,latTwo)
     }
     /**
@@ -102,57 +101,56 @@ class GeographicGraph {
      */
     fun getDistance(lonOne: Double, latOne : Double, lonTwo : Double, latTwo : Double): Double {
         val earthRadiusKm = 6371.0
-        val dLat = Math.toRadians(latTwo - latOne);
-        val dLon = Math.toRadians(lonTwo - lonOne);
-        val originLat = Math.toRadians(latOne);
-        val destinationLat = Math.toRadians(latTwo);
+        val dLat = Math.toRadians(latTwo - latOne)
+        val dLon = Math.toRadians(lonTwo - lonOne)
+        val originLat = Math.toRadians(latOne)
+        val destinationLat = Math.toRadians(latTwo)
 
-        val a = Math.pow(Math.sin(dLat / 2), 2.toDouble()) + Math.pow(Math.sin(dLon / 2), 2.toDouble()) * Math.cos(originLat) * Math.cos(destinationLat);
-        val c = 2 * Math.asin(Math.sqrt(a));
-        return earthRadiusKm * c;
+        val a = Math.pow(Math.sin(dLat / 2), 2.toDouble()) + Math.pow(Math.sin(dLon / 2), 2.toDouble()) * Math.cos(originLat) * Math.cos(destinationLat)
+        val c = 2 * Math.asin(Math.sqrt(a))
+        return earthRadiusKm * c
     }
     fun pruneDisconnected (start : Long)
     {
-        var visited = HashSet<Long>()
-        var toVisit = PriorityQueue<Long>()
+        val visited = HashSet<Long>()
+        val toVisit = PriorityQueue<Long>()
         toVisit.add(start)
         while(toVisit.size!=0)
         {
-            var i = toVisit.poll()
+            val i = toVisit.poll()
             visited.add(i)
-           for (i in vertices[i]?.connections!!)
+           for (x in vertices[i]?.connections!!)
            {
-               if (!visited.contains(i))
+               if (!visited.contains(x))
                {
-                   toVisit.add(i)
+                   toVisit.add(x)
                }
            }
         }
-        var before = vertices.size
+        val before = vertices.size
         vertices = vertices.filter { item -> visited.contains(item.key) } as HashMap<Long, GeographicNode>
-        var after = vertices.size
+        val after = vertices.size
         println("Shrunk vertices from $before to $after")
     }
-    fun getTurnCost(prev: Long, current: Long, next: Long) : Double
+
+    /**
+     * Uses the cosine rule to calculate the angle between the previous and the next node about the current node.
+     * If this angle is less than 100 degrees and the current node is not listed in SafeNode it returns the given cost
+     */
+    fun getTurnCost(prev: Long, current: Long, next: Long, cost : Double) : Double
     {
         if(prev.toInt()==-1) return 0.0
-        var prevNode = vertices[prev]
-        var currentNode = vertices[current]
-        var nextNode = vertices[next]
-        val a = prevNode?.longitude!!
-        val b = prevNode?.latitude!!
-        val c = currentNode?.longitude!!
-        val d = currentNode?.latitude!!
-        val e = nextNode?.longitude!!
-        val f = nextNode?.latitude!!
-        var top =  (c-a)*(e-c)+(d-b)*(f-d)
-        val bottomOne = Math.sqrt((c-a)*(c-a)+(d-b)*(d-b))
-        val bottomTwo = Math.sqrt((e-c)*(e-c)+(f-d)*(f-d))
-        val angle = Math.toDegrees(Math.acos(top/(bottomOne*bottomTwo)))
+        val a = getDistance(prev,next)
+        val b = getDistance(prev,current)
+        val c = getDistance(current,next)
+        val angle = Math.toDegrees(acos((b.pow(2)+c.pow(2)-a.pow(2))/(2*b*c)))
         if (angle < 100.0)
         {
-            println(angle)
-            return 15.0
+            if (safeNodes.contains(current))
+            {
+                return 0.0
+            }
+            return cost
         }
         else
         {
@@ -161,9 +159,9 @@ class GeographicGraph {
     }
 
     /**
-     * Basic A* with priority Queuing implementation
+     * Basic djikstra
      */
-    fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double): MutableList<Long> {
+    fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn : Double): MutableList<Long> {
         class DistTuple(val id : Long, val dist : Double) : Comparable<DistTuple>
         {
             override fun compareTo(other: DistTuple): Int {
@@ -181,36 +179,40 @@ class GeographicGraph {
                 }
             }
         }
-        var Q = PriorityQueue<DistTuple>()//Actual score priority Queue
-        var F = PriorityQueue<DistTuple>()//Heuristic score priority Queue
-        var dist = HashMap<Long, Double>()
-        var prev = HashMap<Long, Long>()
+        val F = PriorityQueue<DistTuple>()//Heuristic score priority Queue
+        val FLookUp = HashMap<Long,DistTuple>()
+        val dist = HashMap<Long, Double>()
+        val prev = HashMap<Long, Long>()
         dist[start] = 0.0
-        var u: Long = 0
+        var u: Long
         for (i in vertices.keys) {
             if(i!=start) {
                 dist[i] = Double.MAX_VALUE
-                F.add(DistTuple(i,dist[i]!!))
+                val toAdd = DistTuple(i,dist[i]!!)
+                FLookUp[i] = toAdd
+                F.add(toAdd)
             }
             prev[i] = -1
-            Q.add(DistTuple(i,dist[i]!!))
         }
-        F.add(DistTuple(start,getDistance(start,end)*accidentsPerKilometre))
+        val toAdd = DistTuple(start,getDistance(start,end)*accidentsPerKilometre)
+        FLookUp[start] = toAdd
+        F.add(toAdd)
         while (F.size != 0) {
             u = F.poll().id
             if (u == end) {
-                return solution(start, end, prev)
+                return solution(end, prev)
             }
             for (neighbour in vertices[u]?.connections!!) {
                 var alt = dist[u]?.plus(vertices[neighbour]?.weight!!)
                 alt = alt?.plus(getDistance(u,neighbour)*accidentsPerKilometre)
-                alt = alt?.plus(getTurnCost(prev[u]!!,u,neighbour))
+                alt = alt?.plus(getTurnCost(prev[u]!!,u,neighbour,accidentsPerTurn))
                 if (alt != null) {
                     if (alt < dist[neighbour]!!) {
                         dist[neighbour] = alt
                         prev[neighbour] = u
-                        Q.add(DistTuple(neighbour,dist[neighbour]!!))
-                        F.add(DistTuple(neighbour,dist[neighbour]!!+getDistance(neighbour,end)*accidentsPerKilometre))
+                        val toAdd = DistTuple(neighbour,dist[neighbour]!!)
+                        F.add(toAdd)
+                        FLookUp[neighbour] = toAdd
                     }
                 }
             }
