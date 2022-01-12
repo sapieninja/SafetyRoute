@@ -22,6 +22,7 @@ import kotlin.math.pow
 class GeographicGraph {
     var vertices: HashMap<Long, GeographicNode> = HashMap()
     var safeNodes = HashSet<Long>() //nodes that are known to be safe
+    var slowNodes = HashSet<Long>()
 
     @Serializable
     class GeographicNode(val longitude: Double, val latitude: Double) {
@@ -89,6 +90,10 @@ class GeographicGraph {
         val latOne = first.latitude
         val lonTwo = second?.longitude!!
         val latTwo = second.latitude
+        if(slowNodes.contains(idOne) && slowNodes.contains(idTwo))
+        {
+            return getDistance(lonOne,latOne,lonTwo,latTwo) * 25.0
+        }
         if (safeNodes.contains(idOne) && safeNodes.contains(idTwo))
         {
             return getDistance(lonOne,latOne,lonTwo,latTwo) * 0.9
@@ -144,7 +149,7 @@ class GeographicGraph {
         val b = getDistance(prev,current)
         val c = getDistance(current,next)
         val angle = Math.toDegrees(acos((b.pow(2)+c.pow(2)-a.pow(2))/(2*b*c)))
-        if (angle < 100.0)
+        if (angle < 115.0)
         {
             if (safeNodes.contains(current))
             {
@@ -159,7 +164,7 @@ class GeographicGraph {
     }
 
     /**
-     * Basic djikstra
+     * Basic dijkstra
      */
     fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn : Double): MutableList<Long> {
         class DistTuple(val id : Long, val dist : Double) : Comparable<DistTuple>

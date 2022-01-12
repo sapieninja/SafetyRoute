@@ -34,34 +34,24 @@ class OpenStreetMap constructor(filename: String) {
         cyclableGraph.pruneDisconnected(20915039)
         println("Creating rTree")
         for (node in cyclableGraph.vertices)
-        {
-           nodeTree = nodeTree.add(node.key,Geometries.point(node.value.longitude,node.value.latitude))
-        }
+            nodeTree = nodeTree.add(node.key,Geometries.point(node.value.longitude,node.value.latitude))
         println("Gathering weights")
         cyclableGraph.gatherWeights(nodeTree)
         for (node in safeNodes)
-        {
             cyclableGraph.vertices[node]?.weight = 0.0
-        }
-        var startNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
-        var endNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
         println("Started Route Finding")
         var startTime = System.nanoTime()
         var gpx: GPX = GPX.builder().build()
-        var counter = 0
-        while (counter < 0)
+       for (i in 1..20)
         {
-            startNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
-            endNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
-            counter += 1
+            var startNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
+            var endNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
             gpx = writeNewTrack(startNode,endNode,10.0,10.0,gpx)!!
         }
-        startNode = 725292357
-        endNode = 20821091
-        gpx = writeNewTrack(startNode,endNode,10.0,10.0,gpx)!!
         GPX.write(gpx,Path.of("route.gpx"))
         var endTime = (System.nanoTime() - startTime)/1000000000.0
         println("Time taken for 10 routes was was $endTime")
+        println(cyclableGraph.slowNodes.size)
     }
     fun writeNewTrack(start: Long, end: Long, dist : Double, turn : Double, gpx : GPX): GPX {
         var route = cyclableGraph.findRoute(start,end,dist,turn)
@@ -101,8 +91,9 @@ class OpenStreetMap constructor(filename: String) {
         //TODO add footpaths where dismounts are allowed but at an extra cost
         var oneWay = false
         var cycleWay = false
+        var slowWay = false
         var nodes = mutableListOf<Long>()
-        val acceptedRoads =      mutableListOf<String>("trunk","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway")
+        val acceptedRoads =      mutableListOf<String>("trunk","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway","footway")
         var disallowedSurfaces = mutableListOf<String>("gravel","dirt","grass","pebblestone")
         var disallowedAccess =   mutableListOf<String>("no")
         var highSpeed =          mutableListOf<String>("40 mph", "50 mph", "60 mph", "70 mph")
@@ -124,11 +115,19 @@ class OpenStreetMap constructor(filename: String) {
                 if (subElement.attribute("k").value == "oneway" && subElement.attribute("v").value == "yes") oneWay = true
                 if (subElement.attribute("k").value == "highway" && subElement.attribute("v").value == "cycleway") cycleWay = true
                 if (subElement.attributeValue("k") == "maxspeed" && highSpeed.contains(subElement.attributeValue("v"))) return
+                if (subElement.attributeValue("k") == "highway" && subElement.attributeValue("v") == "footway") {
+                    slowWay = true
+                    cycleWay =true
+                }
             }
         }
         if (cycleWay) {
             safeNodes.addAll(nodes)
             cyclableGraph.safeNodes.addAll(nodes)
+        }
+        if (slowWay)
+        {
+            cyclableGraph.slowNodes.addAll(nodes)
         }
         for (i in 1..(nodes.size-1)) {
             cyclableGraph.addEdge(nodes[i-1],nodes[i],oneWay)
