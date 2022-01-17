@@ -23,11 +23,29 @@ class GeographicGraph {
     var vertices: HashMap<Long, GeographicNode> = HashMap()
     var safeNodes = HashSet<Long>() //nodes that are known to be safe
     var slowNodes = HashSet<Long>()
+    var isContracted = false //Tells methods such as findRoute which version to use
 
     @Serializable
     class GeographicNode(val longitude: Double, val latitude: Double) {
         var weight: Double = 0.0
         var connections = HashSet<Long>()
+    }
+    class Tuple(val id : Long, val dist : Double) : Comparable<Tuple>
+    {
+        override fun compareTo(other: Tuple): Int {
+            if(dist > other.dist)
+            {
+                return 1
+            }
+            else if(dist == other.dist)
+            {
+                return 0
+            }
+            else
+            {
+                return -1
+            }
+        }
     }
 
     fun addEdge(first: Long, second: Long,oneWay : Boolean) {
@@ -139,8 +157,16 @@ class GeographicGraph {
     }
 
     /**
+     * Uses a Heuristic to enact the contraction hierachies algorithm, and contract the graph by order of important nodes.
+     * If the graph has already been contracted the algorithm is not run.
+     */
+    fun contractGraph() {
+        if(isContracted) return
+    }
+
+    /**
      * Uses the cosine rule to calculate the angle between the previous and the next node about the current node.
-     * If this angle is less than 100 degrees and the current node is not listed in SafeNode it returns the given cost
+     * If this angle is less than 115 degrees and the current node is not listed in SafeNode it returns the given cost
      */
     fun getTurnCost(prev: Long, current: Long, next: Long, cost : Double) : Double
     {
@@ -163,29 +189,30 @@ class GeographicGraph {
         }
     }
 
+    fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn : Double): MutableList<Long> {
+        if (isContracted)
+        {
+            return findContractedRoute(start,end,accidentsPerKilometre,accidentsPerTurn)
+        }
+        else
+        {
+            return findRouteNonContracted(start,end,accidentsPerKilometre,accidentsPerTurn)
+        }
+    }
+
+    /**
+     * Bidirectional Dijkstra on the contracted Graph
+     */
+    private fun findContractedRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn: Double): MutableList<Long> {
+       return findRouteNonContracted(start,end,accidentsPerKilometre,accidentsPerTurn)
+    }
     /**
      * Basic dijkstra
      */
-    fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn : Double): MutableList<Long> {
-        class DistTuple(val id : Long, val dist : Double) : Comparable<DistTuple>
-        {
-            override fun compareTo(other: DistTuple): Int {
-                if(dist > other.dist)
-                {
-                    return 1
-                }
-                else if(dist == other.dist)
-                {
-                    return 0
-                }
-                else
-                {
-                    return -1
-                }
-            }
-        }
-        val F = PriorityQueue<DistTuple>()//Heuristic score priority Queue
-        val FLookUp = HashMap<Long,DistTuple>()
+    private fun findRouteNonContracted(start : Long, end : Long, accidentsPerKilometre: Double,accidentsPerTurn: Double) : MutableList<Long>
+    {
+        val F = PriorityQueue<Tuple>()//Heuristic score priority Queue
+        val FLookUp = HashMap<Long,Tuple>()
         val dist = HashMap<Long, Double>()
         val prev = HashMap<Long, Long>()
         dist[start] = 0.0
@@ -193,14 +220,12 @@ class GeographicGraph {
         for (i in vertices.keys) {
             if(i!=start) {
                 dist[i] = Double.MAX_VALUE
-                val toAdd = DistTuple(i,dist[i]!!)
-                FLookUp[i] = toAdd
+                val toAdd = Tuple(i,dist[i]!!)
                 F.add(toAdd)
             }
             prev[i] = -1
         }
-        val toAdd = DistTuple(start,getDistance(start,end)*accidentsPerKilometre)
-        FLookUp[start] = toAdd
+        val toAdd = Tuple(start,getDistance(start,end)*accidentsPerKilometre)
         F.add(toAdd)
         while (F.size != 0) {
             u = F.poll().id
@@ -215,9 +240,8 @@ class GeographicGraph {
                     if (alt < dist[neighbour]!!) {
                         dist[neighbour] = alt
                         prev[neighbour] = u
-                        val toAdd = DistTuple(neighbour,dist[neighbour]!!)
+                        val toAdd = Tuple(neighbour,dist[neighbour]!!)
                         F.add(toAdd)
-                        FLookUp[neighbour] = toAdd
                     }
                 }
             }

@@ -30,28 +30,14 @@ class OpenStreetMap constructor(filename: String) {
     init {
         println("Parsing XML")
         parseXML(filename)
-        println("Started pruning operation")
-        cyclableGraph.pruneDisconnected(20915039)
         println("Creating rTree")
         for (node in cyclableGraph.vertices)
             nodeTree = nodeTree.add(node.key,Geometries.point(node.value.longitude,node.value.latitude))
         println("Gathering weights")
         cyclableGraph.gatherWeights(nodeTree)
+        cyclableGraph.pruneDisconnected(1964568424)
         for (node in safeNodes)
             cyclableGraph.vertices[node]?.weight = 0.0
-        println("Started Route Finding")
-        var startTime = System.nanoTime()
-        var gpx: GPX = GPX.builder().build()
-       for (i in 1..20)
-        {
-            var startNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
-            var endNode = cyclableGraph.vertices.keys.toList()[Random().nextInt(cyclableGraph.vertices.size)]
-            gpx = writeNewTrack(startNode,endNode,10.0,10.0,gpx)!!
-        }
-        GPX.write(gpx,Path.of("route.gpx"))
-        var endTime = (System.nanoTime() - startTime)/1000000000.0
-        println("Time taken for 10 routes was was $endTime")
-        println(cyclableGraph.slowNodes.size)
     }
     fun writeNewTrack(start: Long, end: Long, dist : Double, turn : Double, gpx : GPX): GPX {
         var route = cyclableGraph.findRoute(start,end,dist,turn)
