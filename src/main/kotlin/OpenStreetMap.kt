@@ -79,10 +79,11 @@ class OpenStreetMap constructor(filename: String) {
         var cycleWay = false
         var slowWay = false
         var nodes = mutableListOf<Long>()
-        val acceptedRoads =      mutableListOf<String>("trunk","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway","footway")
+        val acceptedRoads =      mutableListOf<String>("trunk","pedestrian","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway","footway")
         var disallowedSurfaces = mutableListOf<String>("gravel","dirt","grass","pebblestone")
         var disallowedAccess =   mutableListOf<String>("no")
         var highSpeed =          mutableListOf<String>("40 mph", "50 mph", "60 mph", "70 mph")
+        var tags = HashMap<String,String>()
         val it = way.elementIterator()
         while(it.hasNext())
         {
@@ -92,27 +93,44 @@ class OpenStreetMap constructor(filename: String) {
             }
             if (subElement.qName.name == "tag")
             {
-                if (subElement.attribute("k").value == "highway" && !acceptedRoads.contains(subElement.attribute("v").value)) return
-                if (subElement.attribute("k").value == "surface" && disallowedSurfaces.contains(subElement.attribute("v").value)) return
-                if (subElement.attribute("k").value == "note" && subElement.attribute("v").value == "towpath") return
-                if (subElement.attribute("k").value == "towpath" && subElement.attribute("v").value == "yes") return
-                if (subElement.attribute("k").value == "access" && disallowedAccess.contains(subElement.attribute("v").value)) return
-                if (subElement.attributeValue("k") == "bicycle" && disallowedAccess.contains(subElement.attributeValue("v"))) return
-                if (subElement.attribute("k").value == "oneway" && subElement.attribute("v").value == "yes") oneWay = true
-                if (subElement.attribute("k").value == "highway" && subElement.attribute("v").value == "cycleway") cycleWay = true
-                if (subElement.attributeValue("k") == "maxspeed" && highSpeed.contains(subElement.attributeValue("v"))) return
-                if (subElement.attributeValue("k") == "highway" && subElement.attributeValue("v") == "footway") {
-                    slowWay = true
-                    cycleWay =true
-                }
+                tags[subElement.attributeValue("k")] = subElement.attributeValue("v")
             }
         }
+        val highwayType = tags["highway"].toString()
+        val access      = tags["access"].toString()
+        val surface     = tags["surface"].toString()
+        val note        = tags["note"].toString()
+        val bicycle     = tags["bicycle"].toString()
+        var oneway      = tags["oneway"].toString()
+        var maxspeed    = tags["maxpseed"].toString()
+        var towpath     = tags["towpath"].toString()
+        var motor       = tags["motor_vehicle"].toString()
+        if (!acceptedRoads.contains(highwayType)) return
+        if (highSpeed.contains("maxspeed")) return
+        if (oneway == "yes") oneWay = true
+        if (highwayType == "cycleway") cycleWay = true
+        if (highwayType == "footway") {
+            cycleWay = true
+            slowWay = true
+        }
+        if (highwayType == "pedestrian") {
+            cycleWay = true
+            if(bicycle!="designated")
+            {
+                slowWay = true
+            }
+        }
+        if (note == "towpath") return
+        if (disallowedAccess.contains(access)) return
+        if (disallowedAccess.contains(bicycle)) return
+        if (disallowedSurfaces.contains(surface)) return
+        if (!acceptedRoads.contains(highwayType)) return
+        if (towpath == "yes") return
         if (cycleWay) {
             safeNodes.addAll(nodes)
             cyclableGraph.safeNodes.addAll(nodes)
         }
-        if (slowWay)
-        {
+        if (slowWay) {
             cyclableGraph.slowNodes.addAll(nodes)
         }
         for (i in 1..(nodes.size-1)) {
