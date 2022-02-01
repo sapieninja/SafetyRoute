@@ -126,6 +126,7 @@ class OpenStreetMap constructor(filename: String) {
         if (disallowedSurfaces.contains(surface)) return
         if (!acceptedRoads.contains(highwayType)) return
         if (towpath == "yes") return
+        if (motor == "private") cycleWay = true
         if (cycleWay) {
             safeNodes.addAll(nodes)
             cyclableGraph.safeNodes.addAll(nodes)

@@ -48,6 +48,10 @@ class GeographicGraph {
         }
     }
 
+    fun getRandomId() : Long
+    {
+        return vertices.keys.toList()[Random().nextInt(vertices.size)]
+    }
     fun addEdge(first: Long, second: Long,oneWay : Boolean) {
         val geographicFirst = vertices[first]
         val geographicSecond = vertices[second]
@@ -60,7 +64,7 @@ class GeographicGraph {
     }
 
     /**
-     * This function reads in the accident data, then adds it as a weight to all nodes.
+     * This function reads in the accident data, then adds it as a  weight to all nodes.
      */
     fun gatherWeights(nodeTree: RTree<Long, Geometry>) {
         val accidentFile = File("output.json")
@@ -77,6 +81,7 @@ class GeographicGraph {
                     val additionNode = vertices[accidentWayObserver.first().value()]
                     if (additionNode != null) {
                         when (severity) {
+
                             "Slight" -> additionNode.weight += 1
                             "Severe" -> additionNode.weight += 2
                             "Fatal" -> additionNode.weight += 3
@@ -108,15 +113,13 @@ class GeographicGraph {
         val latOne = first.latitude
         val lonTwo = second?.longitude!!
         val latTwo = second.latitude
-        if(slowNodes.contains(idOne) && slowNodes.contains(idTwo))
-        {
-            return getDistance(lonOne,latOne,lonTwo,latTwo) * 25.0
+        if (slowNodes.contains(idOne) && slowNodes.contains(idTwo)) {
+            return getDistance(lonOne, latOne, lonTwo, latTwo) * 5.0
         }
-        if (safeNodes.contains(idOne) && safeNodes.contains(idTwo))
-        {
-            return getDistance(lonOne,latOne,lonTwo,latTwo) * 0.9
+        if (safeNodes.contains(idOne) && safeNodes.contains(idTwo)) {
+            return getDistance(lonOne, latOne, lonTwo, latTwo) * 0.4
         }
-        return getDistance(lonOne,latOne,lonTwo,latTwo)
+        return getDistance(lonOne, latOne, lonTwo, latTwo)
     }
     /**
      * Uses the Haversine formula to work out the distance between two latitudes and longitudes
@@ -177,7 +180,7 @@ class GeographicGraph {
         val angle = Math.toDegrees(acos((b.pow(2)+c.pow(2)-a.pow(2))/(2*b*c)))
         if (angle < 115.0)
         {
-            if (safeNodes.contains(current))
+            if (safeNodes.contains(current) && !slowNodes.contains(current)) //if node is part of a cycle lane, but not part of a footpath turns are acceptable
             {
                 return 0.0
             }
@@ -199,7 +202,6 @@ class GeographicGraph {
             return findRouteNonContracted(start,end,accidentsPerKilometre,accidentsPerTurn)
         }
     }
-
     /**
      * Bidirectional Dijkstra on the contracted Graph
      */
