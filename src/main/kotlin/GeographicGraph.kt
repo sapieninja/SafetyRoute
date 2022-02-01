@@ -1,7 +1,10 @@
+import com.github.davidmoten.rtree2.Entries
+import com.github.davidmoten.rtree2.Entry
 import com.github.davidmoten.rtree2.RTree
 import com.github.davidmoten.rtree2.geometry.Geometries
 import com.github.davidmoten.rtree2.geometry.Geometry
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.json.JSONArray
 import java.io.File
 import java.security.InvalidParameterException
@@ -24,6 +27,8 @@ class GeographicGraph {
     var safeNodes = HashSet<Long>() //nodes that are known to be safe
     var slowNodes = HashSet<Long>()
     var isContracted = false //Tells methods such as findRoute which version to use
+    @Transient
+    var nodeTree: RTree<Long, Geometry> = RTree.star().maxChildren(30).create()
 
     @Serializable
     class GeographicNode(val longitude: Double, val latitude: Double) {
@@ -48,6 +53,20 @@ class GeographicGraph {
         }
     }
 
+    //This would be the init method but some things are configured externally first
+    fun setup()
+    {
+        if(nodeTree.size()!=0)
+        {
+           return
+        }
+        var nodeList = mutableListOf<Entry<Long,Geometry>>()
+        for (node in vertices)
+        {
+            nodeList.add(Entries.entry(node.key,Geometries.point(node.value.longitude,node.value.latitude)))
+        }
+        nodeTree = RTree.star().maxChildren(28).create(nodeList)
+    }
     fun getRandomId() : Long
     {
         return vertices.keys.toList()[Random().nextInt(vertices.size)]
@@ -66,7 +85,7 @@ class GeographicGraph {
     /**
      * This function reads in the accident data, then adds it as a  weight to all nodes.
      */
-    fun gatherWeights(nodeTree: RTree<Long, Geometry>) {
+    fun gatherWeights() {
         val accidentFile = File("output.json")
         val accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
         var counter = 0

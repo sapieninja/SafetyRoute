@@ -23,7 +23,7 @@ internal class GeographicGraphTest {
         {
             testGraph.vertices[vertice]!!.weight = 0.0
         }
-        testGraph.gatherWeights(testMap.nodeTree)
+        testGraph.gatherWeights()
         var total = 0.0
         for(vertice in testGraph.vertices.keys)
         {

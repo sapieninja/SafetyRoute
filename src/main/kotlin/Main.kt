@@ -1,10 +1,18 @@
 import io.jenetics.jpx.GPX
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+import java.io.File
 import java.nio.file.Path
 import java.util.*
 
 fun main(args: Array<String>) {
-    var Graph = OpenStreetMap("maps/ways.osm")
+    var saveFile = File("savedGraph.bin")
+    var read = saveFile.readBytes()
+    var newGraph = Cbor.decodeFromByteArray<OpenStreetMap>(read)
+    newGraph.cyclableGraph.setup()
+    println("Decoded")
     var gpx = GPX.builder().build()
-    for (i in 1..10)  gpx = Graph.writeNewTrack(Graph.cyclableGraph.getRandomId(),Graph.cyclableGraph.getRandomId(),10.0,10.0,gpx)
-    GPX.write(gpx, Path.of("route.gpx"))
+    gpx = newGraph.writeNewTrack(newGraph.cyclableGraph.getRandomId(),newGraph.cyclableGraph.getRandomId(),10.0,10.0,gpx)
+    GPX.write(gpx,Path.of("route.gpx"))
 }

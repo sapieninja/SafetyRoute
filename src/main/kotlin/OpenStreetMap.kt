@@ -7,6 +7,7 @@ import io.jenetics.jpx.Track
 import io.jenetics.jpx.TrackSegment
 import io.jenetics.jpx.WayPoint
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import org.dom4j.Element
 import org.dom4j.io.SAXReader
 import java.awt.SystemTray
@@ -17,27 +18,23 @@ import java.util.Random
 
 
 @OptIn(ExperimentalSerializationApi::class)
-class OpenStreetMap constructor(filename: String) {
+@Serializable
+class OpenStreetMap constructor(val filename: String) {
     var cyclableGraph = GeographicGraph()
-
-    /**
-     * We put the RTree here because we don't want to have to bother with serializing them
-     */
-
-    var nodeTree: RTree<Long, Geometry> = RTree.star().maxChildren(30).create()
-    var safeNodes : HashSet<Long> = HashSet<Long>()
-
     init {
-        println("Parsing XML")
-        parseXML(filename)
-        println("Creating rTree")
-        for (node in cyclableGraph.vertices)
-            nodeTree = nodeTree.add(node.key,Geometries.point(node.value.longitude,node.value.latitude))
-        println("Gathering weights")
-        cyclableGraph.gatherWeights(nodeTree)
-        cyclableGraph.pruneDisconnected(1964568424)
-        for (node in safeNodes)
-            cyclableGraph.vertices[node]?.weight = 0.0
+        if(cyclableGraph.vertices.size == 0) {
+            println("Parsing XML")
+            parseXML(filename)
+            println("Creating rTree")
+            for (node in cyclableGraph.vertices)
+                cyclableGraph.nodeTree =
+                    cyclableGraph.nodeTree.add(node.key, Geometries.point(node.value.longitude, node.value.latitude))
+            println("Gathering weights")
+            cyclableGraph.gatherWeights()
+            cyclableGraph.pruneDisconnected(1964568424)
+            for (node in cyclableGraph.safeNodes)
+                cyclableGraph.vertices[node]?.weight = 0.0
+        }
     }
     fun writeNewTrack(start: Long, end: Long, dist : Double, turn : Double, gpx : GPX): GPX {
         var route = cyclableGraph.findRoute(start,end,dist,turn)
@@ -74,7 +71,6 @@ class OpenStreetMap constructor(filename: String) {
     }
     fun processWay(way : Element)
     {
-        //TODO add footpaths where dismounts are allowed but at an extra cost
         var oneWay = false
         var cycleWay = false
         var slowWay = false
@@ -128,7 +124,6 @@ class OpenStreetMap constructor(filename: String) {
         if (towpath == "yes") return
         if (motor == "private") cycleWay = true
         if (cycleWay) {
-            safeNodes.addAll(nodes)
             cyclableGraph.safeNodes.addAll(nodes)
         }
         if (slowWay) {
