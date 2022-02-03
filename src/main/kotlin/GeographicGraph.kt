@@ -186,8 +186,8 @@ class GeographicGraph {
      */
     fun contractGraph() {
         if (isContracted) return
-        contractedGraph = ContractableGraph(this, 10.0,10.0)
-        contractedGraph.createGraph()
+        contractedGraph = ContractableGraph(10.0,10.0)
+        contractedGraph.createGraph(this)
         contractedGraph.contractGraph()
     }
 

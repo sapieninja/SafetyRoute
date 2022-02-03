@@ -31,7 +31,7 @@ class OpenStreetMap constructor(val filename: String) {
                     cyclableGraph.nodeTree.add(node.key, Geometries.point(node.value.longitude, node.value.latitude))
             println("Gathering weights")
             cyclableGraph.gatherWeights()
-            cyclableGraph.pruneDisconnected(1964568424)
+            cyclableGraph.pruneDisconnected(276492214)
             for (node in cyclableGraph.safeNodes)
                 cyclableGraph.vertices[node]?.weight = 0.0
         }
