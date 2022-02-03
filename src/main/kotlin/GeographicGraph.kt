@@ -27,6 +27,7 @@ class GeographicGraph {
     var safeNodes = HashSet<Long>() //nodes that are known to be safe
     var slowNodes = HashSet<Long>()
     var isContracted = false //Tells methods such as findRoute which version to use
+    lateinit var contractedGraph : ContractableGraph
     @Transient
     var nodeTree: RTree<Long, Geometry> = RTree.star().maxChildren(30).create()
 
@@ -35,6 +36,7 @@ class GeographicGraph {
         var weight: Double = 0.0
         var connections = HashSet<Long>()
     }
+
     class Tuple(val id : Long, val dist : Double) : Comparable<Tuple>
     {
         override fun compareTo(other: Tuple): Int {
@@ -136,7 +138,7 @@ class GeographicGraph {
             return getDistance(lonOne, latOne, lonTwo, latTwo) * 5.0
         }
         if (safeNodes.contains(idOne) && safeNodes.contains(idTwo)) {
-            return getDistance(lonOne, latOne, lonTwo, latTwo) * 0.4
+            return getDistance(lonOne, latOne, lonTwo, latTwo) * 0.3
         }
         return getDistance(lonOne, latOne, lonTwo, latTwo)
     }
@@ -171,7 +173,7 @@ class GeographicGraph {
                    toVisit.add(x)
                }
            }
-        }
+}
         val before = vertices.size
         vertices = vertices.filter { item -> visited.contains(item.key) } as HashMap<Long, GeographicNode>
         val after = vertices.size
@@ -183,7 +185,10 @@ class GeographicGraph {
      * If the graph has already been contracted the algorithm is not run.
      */
     fun contractGraph() {
-        if(isContracted) return
+        if (isContracted) return
+        contractedGraph = ContractableGraph(this, 10.0,10.0)
+        contractedGraph.createGraph()
+        contractedGraph.contractGraph()
     }
 
     /**
@@ -232,7 +237,7 @@ class GeographicGraph {
      */
     private fun findRouteNonContracted(start : Long, end : Long, accidentsPerKilometre: Double,accidentsPerTurn: Double) : MutableList<Long>
     {
-        val F = PriorityQueue<Tuple>()//Heuristic score priority Queue
+        val F = PriorityQueue<Tuple>()
         val FLookUp = HashMap<Long,Tuple>()
         val dist = HashMap<Long, Double>()
         val prev = HashMap<Long, Long>()
@@ -246,7 +251,7 @@ class GeographicGraph {
             }
             prev[i] = -1
         }
-        val toAdd = Tuple(start,getDistance(start,end)*accidentsPerKilometre)
+        val toAdd = Tuple(start,0.0)
         F.add(toAdd)
         while (F.size != 0) {
             u = F.poll().id

@@ -75,8 +75,8 @@ class OpenStreetMap constructor(val filename: String) {
         var cycleWay = false
         var slowWay = false
         var nodes = mutableListOf<Long>()
-        val acceptedRoads =      mutableListOf<String>("trunk","pedestrian","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway","footway")
-        var disallowedSurfaces = mutableListOf<String>("gravel","dirt","grass","pebblestone")
+        val acceptedRoads =      mutableListOf<String>("bridleway","trunk","pedestrian","service","primary","secondary","tertiary","unclassified","residential","primary_link","secondary_link","tertiary_link","living_street","cycleway","footway")
+        var disallowedSurfaces = mutableListOf<String>("unpaved","fine_gravel","gravel","dirt","grass","pebblestone")
         var disallowedAccess =   mutableListOf<String>("no")
         var highSpeed =          mutableListOf<String>("40 mph", "50 mph", "60 mph", "70 mph")
         var tags = HashMap<String,String>()
@@ -98,11 +98,11 @@ class OpenStreetMap constructor(val filename: String) {
         val note        = tags["note"].toString()
         val bicycle     = tags["bicycle"].toString()
         var oneway      = tags["oneway"].toString()
-        var maxspeed    = tags["maxpseed"].toString()
+        var maxspeed    = tags["maxspeed"].toString()
         var towpath     = tags["towpath"].toString()
         var motor       = tags["motor_vehicle"].toString()
         if (!acceptedRoads.contains(highwayType)) return
-        if (highSpeed.contains("maxspeed")) return
+        if (highSpeed.contains(maxspeed)) return
         if (oneway == "yes") oneWay = true
         if (highwayType == "cycleway") cycleWay = true
         if (highwayType == "footway") {
