@@ -241,7 +241,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
             contractNode(next.id,current)
             current += 1
-            println("${contractionQueue.size},$newEdges,$current,$noShortcuts")
+            println(contractionQueue.size)
         }
     }
 
@@ -306,7 +306,6 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
 
     /**
      * Just a standard dijkstra implementation
-     * TOOD make this use the infinite graph variant because that will be faster
      */
     private fun isShortest(from: String, by : String, to : String) : Boolean
     {
@@ -359,9 +358,13 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                         dist[neighbour.key] = alt
                         prev[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, dist[neighbour.key]!!)
+                        F.add(toAdd)
                     }
                 }
             }
+        }
+        if(numSettled>20000){
+            println("$numSettled,${prev[to]},${dist[to]}")
         }
         return prev[to] == by
     }
