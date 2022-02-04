@@ -222,7 +222,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
      */
     fun contractGraph()
     {
-        println("Contracting Graph")
+        println("Contracting Graph of size ${edgeVertices.size}")
         var current = 1
         var contractionQueue = PriorityQueue<Tuple>()
         for (vertice in edgeVertices.keys)
@@ -241,8 +241,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
             contractNode(next.id,current)
             current += 1
-            println(contractionQueue.size)
-            println(newEdges)
+            println("${contractionQueue.size},$newEdges,$current,$noShortcuts")
         }
     }
 
@@ -333,20 +332,18 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
         val prev = HashMap<String, String>()
         dist[from] = 0.0
         var u : String
-        for (i in edgeVertices.keys) {
-            dist[i] = Double.MAX_VALUE
-            prev[i] = "-1"
-        }
         val toAdd = Tuple(from,0.0)
         F.add(toAdd)
+        var numSettled = 0
         while (F.size != 0) {
             u = F.poll().id
-            if (u == to) continue
+            numSettled += 1
+            if (u == to) break
             for (neighbour in edgeVertices[u]?.connections!!) {
                 if (edgeVertices[neighbour.key]!!.deleted) continue
                 var alt = neighbour.value + dist[u]!!
                 if (alt != null) {
-                    if (alt < dist[neighbour.key]!!) {
+                    if (!dist.containsKey(neighbour.key)||alt < dist[neighbour.key]!!) {
                         dist[neighbour.key] = alt
                         prev[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, dist[neighbour.key]!!)
@@ -358,7 +355,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 if (edgeVertices[neighbour.key]!!.deleted) continue
                 var alt = neighbour.value + dist[u]!!
                 if (alt != null) {
-                    if (alt < dist[neighbour.key]!!) {
+                    if (!dist.containsKey(neighbour.key) || alt < dist[neighbour.key]!!) {
                         dist[neighbour.key] = alt
                         prev[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, dist[neighbour.key]!!)
