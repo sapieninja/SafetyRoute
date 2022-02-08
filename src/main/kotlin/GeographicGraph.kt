@@ -189,6 +189,7 @@ class GeographicGraph {
         contractedGraph = ContractableGraph(10.0,10.0)
         contractedGraph.createGraph(this)
         contractedGraph.contractGraph()
+        isContracted = true
     }
 
     /**
@@ -230,7 +231,7 @@ class GeographicGraph {
      * Bidirectional Dijkstra on the contracted Graph
      */
     private fun findContractedRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn: Double): MutableList<Long> {
-       return findRouteNonContracted(start,end,accidentsPerKilometre,accidentsPerTurn)
+       return contractedGraph.findRoute(start,end,this)
     }
     /**
      * Basic dijkstra
@@ -256,6 +257,7 @@ class GeographicGraph {
         while (F.size != 0) {
             u = F.poll().id
             if (u == end) {
+                println(dist[end])
                 return solution(end, prev)
             }
             for (neighbour in vertices[u]?.connections!!) {

@@ -20,7 +20,8 @@ fun main(args: Array<String>) {
     var newGraph = Cbor.decodeFromByteArray<OpenStreetMap>(read)
     println("Decoded")
     var gpx = GPX.builder().build()
-    gpx = newGraph.writeNewTrack(276492205,21672596,10.0,10.0,gpx)
-    Graph.cyclableGraph.contractedGraph.findRoute(276492205,21672596,Graph.cyclableGraph)
-    GPX.write(gpx,Path.of("route.gpx"))
+    gpx = newGraph.writeNewTrack(276492205, 68343918, 10.0, 10.0, gpx)
+    newGraph.cyclableGraph.isContracted = false
+    gpx = newGraph.writeNewTrack(276492205, 68343918, 10.0, 10.0, gpx)
+    GPX.write(gpx, Path.of("route.gpx"))
 }

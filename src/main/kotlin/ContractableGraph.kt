@@ -11,8 +11,8 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
     /**
      * In the initalisation phase we create a new edge to edge graph based on path costs from the previous graph
      */
-    var edgeLookUp = HashMap<Long,HashSet<String>>()
-    var edgeVertices = HashMap<String,edgeVertice>()
+    var edgeLookUp = HashMap<Long,HashSet<Long>>()
+    var edgeVertices = HashMap<Long,edgeVertice>()
     var noShortcuts = 0
 
     /**
@@ -23,14 +23,14 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
     {
         var deleted = false
         var hierachy = 0
-        var connections : HashMap<String,Double> = HashMap<String, Double>()
-        var incomingConnections = HashMap<String,Double>()
-        var shortcutConnections = HashMap<String, Double>() //gives the weights of a shortcut based connection to another node
-        var incomingShortcuts = HashMap<String,Double>()
-        var shortcutRoutes = HashMap<String, String>() //gives the node through which the shortcut travels
+        var connections = HashMap<Long, Double>()
+        var incomingConnections = HashMap<Long,Double>()
+        var shortcutConnections = HashMap<Long, Double>() //gives the weights of a shortcut based connection to another node
+        var incomingShortcuts = HashMap<Long,Double>()
+        var shortcutRoutes = HashMap<Long, Long>() //gives the node through which the shortcut travels
     }
 
-    class Tuple(val id : String, val dist : Int) : Comparable<Tuple>
+    class Tuple(val id : Long, val dist : Int) : Comparable<Tuple>
     {
         override fun compareTo(other: Tuple): Int {
             if(dist > other.dist)
@@ -56,7 +56,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
     fun createGraph(inputGraph : GeographicGraph)
     {
         println("Creating Graph")
-        var count = 0
+        var count : Long = 0
        var edgeNo = 1
         for (item in inputGraph.vertices) edgeLookUp[item.key] = HashSet()
         for (start in inputGraph.vertices) {
@@ -66,9 +66,13 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 {
                     if(start.key!=end)
                     {
+                        count += 1
                         var cost = getEdgeCost(inputGraph,start.key,middle,end)
-                        var idOne = (min(start.key,middle).toString()+"/"+max(start.key,middle).toString())
-                        var idTwo = (min(middle,end).toString()+"/"+max(middle,end).toString())
+                        var idOne = count
+                        if (edgeLookUp[start.key]!!.intersect(edgeLookUp[middle]!!).size == 1) idOne = edgeLookUp[start.key]!!.intersect(edgeLookUp[middle]!!).first()
+                        count += 1
+                        var idTwo = count
+                        if (edgeLookUp[middle]!!.intersect(edgeLookUp[end]!!).size == 1) idTwo = edgeLookUp[middle]!!.intersect(edgeLookUp[end]!!).first()
                         if (!edgeVertices.containsKey(idOne)) {
                             var one = edgeVertice(start.key, middle)
                             edgeVertices[idOne] = one
@@ -104,9 +108,9 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
      * Then the intersection of the set of settled nodes is found and the minimum found.
      * Then the route is created by recursively looking up the shortcuts
      */
-    fun findRoute(from : Long, to : Long, inputGraph: GeographicGraph)
-    {
-        class Tuple(val id : String, val dist : Double) : Comparable<Tuple>
+    fun findRoute(from : Long, to : Long, inputGraph: GeographicGraph): MutableList<Long> {
+        println("Using contracted Graph")
+        class Tuple(val id : Long, val dist : Double) : Comparable<Tuple>
         {
             override fun compareTo(other: Tuple): Int {
                 if(dist > other.dist)
@@ -124,17 +128,13 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
         }
         var F = PriorityQueue<Tuple>()
-        var settledFrom = HashSet<String>()
-        var dist = HashMap<String, Double>()
-        var prev = HashMap<String, String>()
-        var u : String
-        for (i in edgeVertices.keys) {
-            prev[i] = "-1"
-            dist[i] = Double.MAX_VALUE
-        }
+        var settledFrom = HashSet<Long>()
+        var dist = HashMap<Long, Double>()
+        var prev = HashMap<Long, Long>()
+        var u : Long
         for (startEdge in edgeLookUp[from]!!) {
             dist[startEdge] = inputGraph.getDistance(edgeVertices[startEdge]!!.first,edgeVertices[startEdge]!!.second) *distanceCost *1/2
-            prev[startEdge] = "no"
+            prev[startEdge] = -1
             val toAdd = Tuple(startEdge, 0.0)
             F.add(toAdd)
         }
@@ -146,7 +146,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 if (edgeVertices[neighbour.key]!!.hierachy < edgeVertices[u]!!.hierachy) continue
                 var alt = neighbour.value + dist[u]!!
                 if (alt != null) {
-                    if (alt < dist[neighbour.key]!!) {
+                    if (!dist.containsKey(neighbour.key)|| alt< dist[neighbour.key]!!) {
                         dist[neighbour.key] = alt
                         prev[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, dist[neighbour.key]!!)
@@ -158,7 +158,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 if (edgeVertices[neighbour.key]!!.hierachy < edgeVertices[u]!!.hierachy) continue
                 var alt = neighbour.value + dist[u]!!
                 if (alt != null) {
-                    if (alt < dist[neighbour.key]!!) {
+                    if (!dist.containsKey(neighbour.key)|| alt< dist[neighbour.key]!!) {
                         dist[neighbour.key] = alt
                         prev[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, dist[neighbour.key]!!)
@@ -168,16 +168,12 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
         }
         F = PriorityQueue<Tuple>()
-        var settledTo = HashSet<String>()
-        var distTo = HashMap<String, Double>()
-        var prevTo = HashMap<String, String>()
-        for (i in edgeVertices.keys) {
-            prevTo[i] = "-1"
-            distTo[i] =  Double.MAX_VALUE
-        }
+        var settledTo = HashSet<Long>()
+        var distTo = HashMap<Long, Double>()
+        var prevTo = HashMap<Long, Long>()
         for (startEdge in edgeLookUp[to]!!) {
-            distTo[startEdge] = inputGraph.getDistance(edgeVertices[startEdge]!!.first,edgeVertices[startEdge]!!.second) *distanceCost *1/2
-            prevTo[startEdge] = "no"
+            distTo[startEdge] = inputGraph.getDistance(edgeVertices[startEdge]!!.first,edgeVertices[startEdge]!!.second)*distanceCost *1/2
+            prevTo[startEdge] = -1
             val toAdd = Tuple(startEdge, 0.0)
             F.add(toAdd)
         }
@@ -189,7 +185,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 if (edgeVertices[neighbour.key]!!.hierachy < edgeVertices[u]!!.hierachy) continue
                 var alt = neighbour.value + distTo[u]!!
                 if (alt != null) {
-                    if (alt < distTo[neighbour.key]!!) {
+                    if (!distTo.containsKey(neighbour.key)|| alt< distTo[neighbour.key]!!) {
                         distTo[neighbour.key] = alt
                         prevTo[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, distTo[neighbour.key]!!)
@@ -201,7 +197,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 if (edgeVertices[neighbour.key]!!.hierachy < edgeVertices[u]!!.hierachy) continue
                 var alt = neighbour.value + distTo[u]!!
                 if (alt != null) {
-                    if (alt < distTo[neighbour.key]!!) {
+                    if (!distTo.containsKey(neighbour.key)|| alt< distTo[neighbour.key]!!) {
                         distTo[neighbour.key] = alt
                         prevTo[neighbour.key] = u
                         val toAdd = Tuple(neighbour.key, distTo[neighbour.key]!!)
@@ -210,11 +206,60 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 }
             }
         }
-        println(settledTo.intersect(settledFrom))
+        var minimumNode : Long = -1
+        var minimumCost = Double.MAX_VALUE
         for (i in settledTo.intersect(settledFrom))
         {
-            println(dist[i]!!+distTo[i]!!)
+            if (dist[i]!! + distTo[i]!! < minimumCost)
+            {
+                minimumNode = i
+                minimumCost = dist[i]!! + distTo[i]!!
+            }
         }
+        return deContractRoute(from,minimumNode,to,prev,prevTo)
+    }
+
+    /**
+     * With given conditions, decontracts the route
+     */
+    fun deContractRoute(from: Long, minimumNode : Long, to : Long, prev : HashMap<Long,Long>, prevTo: HashMap<Long,Long>): MutableList<Long> {
+        var route = mutableListOf<Long>(minimumNode)
+        while (prev[route[0]]!! != -1L) {
+            route.add(0, prev[route[0]]!!)
+        }
+        while (prevTo[route.last()]!! != -1L) {
+            route.add(prevTo[route.last()]!!)
+        }
+        while (true) {
+            var finished = true
+            for (i in 1..(route.size - 1)) {
+                var current = edgeVertices[route[i - 1]]!!
+                if (current.shortcutConnections.containsKey(route[i])) {
+                    route.add(i, current.shortcutRoutes[route[i]]!!)
+                    finished = false
+                    break
+                }
+            }
+            if (finished) break
+        }
+        var nodeRoute = mutableListOf<Long>()
+        nodeRoute.add(from)
+        for (edgeVertice in route) {
+            var verticeObj = edgeVertices[edgeVertice]!!
+            if (nodeRoute.last() == verticeObj.first) nodeRoute.add(verticeObj.second)
+            else nodeRoute.add(verticeObj.first)
+        }
+        nodeRoute.add(to)
+        return nodeRoute
+    }
+    /**
+     * Tells if a contraction is legal
+     */
+    fun isLegal(from: Long, to: Long) : Boolean
+    {
+        var fromObject = edgeVertices[from]!!
+        if (fromObject.connections.containsKey(to)) return false
+        return true
     }
     /**
      * Creates another graph: G*, which is contracted
@@ -248,7 +293,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
     /**
      * Performs the act of contraction on the input node
      */
-    private fun contractNode(node : String, current : Int)
+    private fun contractNode(node : Long, current : Int)
     {
         var nodeObj = edgeVertices[node]!!
         for (from in nodeObj.incomingConnections.keys.union(nodeObj.incomingShortcuts.keys))
@@ -260,7 +305,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                     val fromVertice = edgeVertices[from]!!
                     val toVertice = edgeVertices[to]!!
                     if (fromVertice.deleted or toVertice.deleted) continue
-                    if (isShortest(from,node,to))
+                    if (isShortest(from,node,to) && isLegal(from,to))
                     {
                         noShortcuts += 1
                         var connectionWeight = 0.0
@@ -284,7 +329,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
      * This is equivalent to the number of shortcuts that would be added if the node were to be deleted
      * or the number of the routes between adjacent nodes that pass through this node.
      */
-    private fun getEdgeDifference(node : String) : Int
+    private fun getEdgeDifference(node : Long) : Int
     {
         var nodeObj = edgeVertices[node]!!
         var count = 0
@@ -307,9 +352,9 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
     /**
      * Just a standard dijkstra implementation
      */
-    private fun isShortest(from: String, by : String, to : String) : Boolean
+    private fun isShortest(from: Long, by : Long, to : Long) : Boolean
     {
-        class Tuple(val id : String, val dist : Double) : Comparable<Tuple>
+        class Tuple(val id : Long, val dist : Double) : Comparable<Tuple>
         {
             override fun compareTo(other: Tuple): Int {
                 if(dist > other.dist)
@@ -327,10 +372,10 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
         }
         val F = PriorityQueue<Tuple>()
-        val dist = HashMap<String, Double>()
-        val prev = HashMap<String, String>()
+        val dist = HashMap<Long, Double>()
+        val prev = HashMap<Long, Long>()
         dist[from] = 0.0
-        var u : String
+        var u : Long
         val toAdd = Tuple(from,0.0)
         F.add(toAdd)
         var numSettled = 0
