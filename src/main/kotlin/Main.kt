@@ -15,9 +15,7 @@ fun main(args: Array<String>) {
     var Graph = OpenStreetMap("maps/ways.osm")
     Graph.cyclableGraph.contractGraph()
     var saveFile = File("savedGraph.bin")
-    saveFile.writeBytes(Cbor.encodeToByteArray(Graph))
-    var read = saveFile.readBytes()
-    var newGraph = Cbor.decodeFromByteArray<OpenStreetMap>(read)
+    var newGraph = Graph
     println("Decoded")
     var gpx = GPX.builder().build()
     gpx = newGraph.writeNewTrack(276492205, 68343918, 10.0, 10.0, gpx)

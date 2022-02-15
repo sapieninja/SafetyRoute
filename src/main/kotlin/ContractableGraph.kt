@@ -216,7 +216,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                 minimumCost = dist[i]!! + distTo[i]!!
             }
         }
-        return deContractRoute(from,minimumNode,to,prev,prevTo)
+        return convertToNodeRoute(from,deContractRoute(from,minimumNode,to,prev,prevTo),to)
     }
 
     /**
@@ -230,6 +230,9 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
         while (prevTo[route.last()]!! != -1L) {
             route.add(prevTo[route.last()]!!)
         }
+        return unpackRoute(route)
+    }
+    fun unpackRoute(route : MutableList<Long>): MutableList<Long> {
         while (true) {
             var finished = true
             for (i in 1..(route.size - 1)) {
@@ -242,6 +245,9 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
             if (finished) break
         }
+        return route
+    }
+    fun convertToNodeRoute(from: Long, route : MutableList<Long>, to : Long): MutableList<Long> {
         var nodeRoute = mutableListOf<Long>()
         nodeRoute.add(from)
         for (edgeVertice in route) {
@@ -252,15 +258,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
         nodeRoute.add(to)
         return nodeRoute
     }
-    /**
-     * Tells if a contraction is legal
-     */
-    fun isLegal(from: Long, to: Long) : Boolean
-    {
-        var fromObject = edgeVertices[from]!!
-        if (fromObject.connections.containsKey(to)) return false
-        return true
-    }
+
     /**
      * Creates another graph: G*, which is contracted
      * Uses a edge change heuristic, which aims to minimise the number of edges reduced
@@ -305,7 +303,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
                     val fromVertice = edgeVertices[from]!!
                     val toVertice = edgeVertices[to]!!
                     if (fromVertice.deleted or toVertice.deleted) continue
-                    if (isShortest(from,node,to) && isLegal(from,to))
+                    if (isShortest(from,node,to))
                     {
                         noShortcuts += 1
                         var connectionWeight = 0.0
@@ -349,6 +347,19 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
         return count
     }
 
+    fun getIllegal(from: Long, by: Long, to: Long, prev : HashMap<Long,Long>) : HashSet<Long>
+    {
+        var illegalNeighbours = HashSet<Long>()
+        var route = deContractRoute(from,by,to,prev,HashMap<Long,Long>())
+        for (edgeVertice in route)
+        {
+            if (edgeVertice != to)
+            {
+                illegalNeighbours = illegalNeighbours.union(edgeVertices[edgeVertice]!!.connections.keys) as HashSet<Long>
+            }
+        }
+        return illegalNeighbours
+    }
     /**
      * Just a standard dijkstra implementation
      */
@@ -377,15 +388,18 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
         dist[from] = 0.0
         var u : Long
         val toAdd = Tuple(from,0.0)
+        prev[from] = -1
         F.add(toAdd)
         var numSettled = 0
         while (F.size != 0) {
             u = F.poll().id
+            var toIgnore = getIllegal(from,prev[u]!!,u,prev)
             numSettled += 1
             if (u == to) break
             for (neighbour in edgeVertices[u]?.connections!!) {
                 if (edgeVertices[neighbour.key]!!.deleted) continue
                 var alt = neighbour.value + dist[u]!!
+                if ((toIgnore.intersect(unpackRoute(listOf<Long>(u,neighbour.key) as MutableList<Long>).toSet())).size > 1) continue
                 if (alt != null) {
                     if (!dist.containsKey(neighbour.key)||alt < dist[neighbour.key]!!) {
                         dist[neighbour.key] = alt
@@ -397,6 +411,7 @@ class ContractableGraph(var distanceCost : Double,var  turnCost: Double){
             }
             for (neighbour in edgeVertices[u]?.shortcutConnections!!) {
                 if (edgeVertices[neighbour.key]!!.deleted) continue
+                if ((toIgnore.intersect(unpackRoute(listOf<Long>(u,neighbour.key) as MutableList<Long>).toSet())).size > 1) continue
                 var alt = neighbour.value + dist[u]!!
                 if (alt != null) {
                     if (!dist.containsKey(neighbour.key) || alt < dist[neighbour.key]!!) {
