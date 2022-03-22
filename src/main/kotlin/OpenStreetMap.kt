@@ -13,13 +13,12 @@ class OpenStreetMap constructor(val filename: String) {
         if (cyclableGraph.vertices.size == 0) {
             println("Parsing XML")
             parseXML(filename)
+            println("Pruning Disconnected")
+            cyclableGraph.pruneDisconnected()
             println("Creating rTree")
-            for (node in cyclableGraph.vertices)
-                cyclableGraph.nodeTree =
-                    cyclableGraph.nodeTree.add(node.key, Geometries.point(node.value.longitude, node.value.latitude))
+            cyclableGraph.setupRTree()
             println("Gathering weights")
             cyclableGraph.gatherWeights()
-            cyclableGraph.pruneDisconnected(1702430098)
             for (node in cyclableGraph.safeNodes)
                 cyclableGraph.vertices[node]?.weight = 0.0
         }
