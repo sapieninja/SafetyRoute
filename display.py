@@ -1,6 +1,5 @@
 import json
 import matplotlib.pyplot as plt
-import mplleaflet
 import numpy as np
 x = []
 y = []

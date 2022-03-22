@@ -5,7 +5,7 @@ import kotlin.collections.HashSet
 
 //TODO allow routing with a passed in inputGraph
 @Serializable
-class ContractableGraph(private var distanceCost: Double, var turnCost: Double) {
+class ContractableGraph(private var distanceCost: Double) {
     /**
      * In the initalisation phase we create a new graph from the previous graph
      */
@@ -38,20 +38,18 @@ class ContractableGraph(private var distanceCost: Double, var turnCost: Double) 
     fun createGraph(inputGraph: GeographicGraph) {
         println("Creating Graph")
         for (vertice in inputGraph.vertices) {
-            var newNode = vertices[vertice.key]
-            if (newNode == null) newNode = ContractableNode(vertice.key)
-            for (connectedNode in vertice.value.connections) {
-                newNode.connections[connectedNode] = inputGraph.routeCost(vertice.key, connectedNode, distanceCost, 0.0)
-                if (vertices.containsKey(connectedNode)) vertices[connectedNode]!!.incomingConnections[vertice.key] =
-                    inputGraph.routeCost(vertice.key, connectedNode, distanceCost, 0.0)
-                else {
-                    val newConnectedNode = ContractableNode(connectedNode)
-                    newConnectedNode.incomingConnections[vertice.key] =
-                        inputGraph.routeCost(vertice.key, connectedNode, distanceCost, 0.0)
-                    vertices[connectedNode] = newConnectedNode
-                }
+            vertices[vertice.key] = ContractableNode(vertice.key)
+            for (connection in vertice.value.connections)
+            {
+                vertices[vertice.key]!!.connections[connection] = inputGraph.routeCost(vertice.key,connection,distanceCost,0.0)
             }
-            vertices[vertice.key] = newNode
+        }
+        for (vertice in inputGraph.vertices)
+        {
+            for (connection in vertice.value.connections)
+            {
+                vertices[connection]!!.incomingConnections[vertice.key] = inputGraph.routeCost(vertice.key,connection,distanceCost,0.0)
+            }
         }
     }
 
@@ -191,10 +189,10 @@ class ContractableGraph(private var distanceCost: Double, var turnCost: Double) 
         var count = 0
         for (vertice in vertices.keys) {
             contractionQueue.add(IntTuple(vertice, getHeuristicValue(vertice, inputGraph)))
-            println(contractionQueue.size)
+            println("There are ${contractionQueue.size} nodes left to contract")
         }
         while (contractionQueue.size != 0) {
-            if (count == 100) {
+            if (count == 40) {
                 println("Recalculating Queue")
                 val newQueue = PriorityQueue<IntTuple>()
                 while (contractionQueue.size != 0) {
@@ -218,8 +216,7 @@ class ContractableGraph(private var distanceCost: Double, var turnCost: Double) 
             }
             contractNode(next.id, current, inputGraph)
             current += 1
-            println(newEdges)
-            println(contractionQueue.size)
+            println("There are ${contractionQueue.size} nodes left to contract")
         }
         println("Contraction finished")
         for (vertice in vertices) {

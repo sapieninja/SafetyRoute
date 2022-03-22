@@ -26,8 +26,8 @@ class GeographicGraph {
     var vertices: HashMap<Long, GeographicNode> = HashMap()
     var safeNodes = HashSet<Long>() //nodes that are known to be safe
     var slowNodes = HashSet<Long>()
-    var isContracted = false //Tells methods such as findRoute which version to use
-    lateinit var contractedGraph : ContractableGraph
+    var contractedGraphs = HashMap<Double, ContractableGraph>()
+
     @Transient
     var nodeTree: RTree<Long, Geometry> = RTree.star().maxChildren(30).create()
 
@@ -38,29 +38,27 @@ class GeographicGraph {
     }
 
     //This would be the init method but some things are configured externally first
-    fun setup()
-    {
-        if(nodeTree.size()!=0)
-        {
-           return
+    fun setup() {
+        if (nodeTree.size() != 0) {
+            return
         }
-        var nodeList = mutableListOf<Entry<Long,Geometry>>()
-        for (node in vertices)
-        {
-            nodeList.add(Entries.entry(node.key,Geometries.point(node.value.longitude,node.value.latitude)))
+        var nodeList = mutableListOf<Entry<Long, Geometry>>()
+        for (node in vertices) {
+            nodeList.add(Entries.entry(node.key, Geometries.point(node.value.longitude, node.value.latitude)))
         }
         nodeTree = RTree.star().maxChildren(28).create(nodeList)
     }
-    fun getRandomId() : Long
-    {
+
+    fun getRandomId(): Long {
         return vertices.keys.toList()[Random().nextInt(vertices.size)]
     }
-    fun addEdge(first: Long, second: Long,oneWay : Boolean) {
+
+    fun addEdge(first: Long, second: Long, oneWay: Boolean) {
         val geographicFirst = vertices[first]
         val geographicSecond = vertices[second]
         if (geographicFirst != null && geographicSecond != null) {
             vertices[first]?.connections?.add(second)
-            if(!oneWay) {
+            if (!oneWay) {
                 vertices[second]?.connections?.add(first)
             }
         }
@@ -74,22 +72,20 @@ class GeographicGraph {
         val accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
         for (accident in accidents) {
             val parsedAccident = accident.toString().split(",")//hacky but will work
-            val latitude : Double = parsedAccident[0].substring(1).toDouble()
-            val longitude : Double = parsedAccident[1].toDouble()
+            val latitude: Double = parsedAccident[0].substring(1).toDouble()
+            val longitude: Double = parsedAccident[1].toDouble()
             val severity = parsedAccident[2].substring(1, parsedAccident[2].length - 2)
             try {
-                    val additionNode = vertices[getNearestNode(latitude,longitude)]!!
-                    if (additionNode != null) {
-                        when (severity) {
+                val additionNode = vertices[getNearestNode(latitude, longitude)]!!
+                if (additionNode != null) {
+                    when (severity) {
 
-                            "Slight" -> additionNode.weight += 1
-                            "Severe" -> additionNode.weight += 2
-                            "Fatal" -> additionNode.weight += 3
-                        }
+                        "Slight" -> additionNode.weight += 1
+                        "Severe" -> additionNode.weight += 2
+                        "Fatal" -> additionNode.weight += 3
+                    }
                 }
-            }
-            catch(e : InvalidParameterException)
-            {
+            } catch (e: InvalidParameterException) {
                 //In this case we can still apply all the other accidents, even if this accident doesn't match well.
                 continue
             }
@@ -100,16 +96,15 @@ class GeographicGraph {
      * This function takes in a latitude and longitude,
      * and uses these to find the id of the nearest node
      */
-    private fun getNearestNode(latitude : Double, longitude: Double) : Long
-    {
-        val closestNodeObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.01, 1)
+    private fun getNearestNode(latitude: Double, longitude: Double): Long {
+        val closestNodeObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.001, 1)
         try {
             val closestNode = closestNodeObserver.first()
             return closestNode.value()
-        } catch (e : NoSuchElementException)
-        {
+        } catch (e: NoSuchElementException) {
             //If this happens the coordinates are very far from the nearest node, so a appropriate node cannot be found.
             //Therefore an error should be thrown
+            println("error")
             throw InvalidParameterException()
         }
     }
@@ -124,7 +119,7 @@ class GeographicGraph {
         return route.asReversed()
     }
 
-    fun getDistance(idOne: Long, idTwo : Long): Double {
+    fun getDistance(idOne: Long, idTwo: Long): Double {
         val first = vertices[idOne]
         val second = vertices[idTwo]
         val lonOne = first?.longitude!!
@@ -139,11 +134,12 @@ class GeographicGraph {
         }
         return getDistance(lonOne, latOne, lonTwo, latTwo)
     }
+
     /**
      * Uses the Haversine formula to work out the distance between two latitudes and longitudes
      * Probably overkill in this case but it works
      */
-    fun getDistance(lonOne: Double, latOne : Double, lonTwo : Double, latTwo : Double): Double {
+    fun getDistance(lonOne: Double, latOne: Double, lonTwo: Double, latTwo: Double): Double {
         val earthRadiusKm = 6371.0
         val dLat = Math.toRadians(latTwo - latOne)
         val dLon = Math.toRadians(lonTwo - lonOne)
@@ -154,23 +150,20 @@ class GeographicGraph {
         val c = 2 * asin(sqrt(a))
         return earthRadiusKm * c
     }
-    fun pruneDisconnected (start : Long)
-    {
+
+    fun pruneDisconnected(start: Long) {
         val visited = HashSet<Long>()
         val toVisit = PriorityQueue<Long>()
         toVisit.add(start)
-        while(toVisit.size!=0)
-        {
+        while (toVisit.size != 0) {
             val i = toVisit.poll()
             visited.add(i)
-           for (x in vertices[i]?.connections!!)
-           {
-               if (!visited.contains(x))
-               {
-                   toVisit.add(x)
-               }
-           }
-}
+            for (x in vertices[i]?.connections!!) {
+                if (!visited.contains(x)) {
+                    toVisit.add(x)
+                }
+            }
+        }
         val before = vertices.size
         vertices = vertices.filter { item -> visited.contains(item.key) } as HashMap<Long, GeographicNode>
         val after = vertices.size
@@ -181,84 +174,112 @@ class GeographicGraph {
      * Uses a Heuristic to enact the contraction hierachies algorithm, and contract the graph by order of important nodes.
      * If the graph has already been contracted the algorithm is not run.
      */
-    fun contractGraph(cyclableGraph: GeographicGraph) {
-        if (isContracted) return
-        contractedGraph = ContractableGraph(10.0,10.0)
-        contractedGraph.createGraph(this)
-        contractedGraph.contractGraph(cyclableGraph)
-        isContracted = true
+    fun contractGraph(distanceCost: Double) {
+        if (contractedGraphs.containsKey(distanceCost)) return
+        var newContracted = ContractableGraph(distanceCost)
+        newContracted.createGraph(this)
+        newContracted.contractGraph(this)
+        contractedGraphs[distanceCost] = newContracted
     }
 
     /**
      * Uses the cosine rule to calculate the angle between the previous and the next node about the current node.
      * If this angle is less than 115 degrees and the current node is not listed in SafeNode it returns the given cost
      */
-    fun getTurnCost(prev: Long, current: Long, next: Long, cost : Double) : Double
-    {
+    fun getTurnCost(prev: Long, current: Long, next: Long, cost: Double): Double {
         if (cost == 0.0) return 0.0
-        if(prev.toInt()==-1) return 0.0
-        val a = getDistance(prev,next)
-        val b = getDistance(prev,current)
-        val c = getDistance(current,next)
-        val angle = Math.toDegrees(acos((b.pow(2)+c.pow(2)-a.pow(2))/(2*b*c)))
-        if (angle < 115.0)
-        {
+        if (prev.toInt() == -1) return 0.0
+        val a = getDistance(prev, next)
+        val b = getDistance(prev, current)
+        val c = getDistance(current, next)
+        val angle = Math.toDegrees(acos((b.pow(2) + c.pow(2) - a.pow(2)) / (2 * b * c)))
+        if (angle < 115.0) {
             if (safeNodes.contains(current) && !slowNodes.contains(current)) //if node is part of a cycle lane, but not part of a footpath turns are acceptable
             {
                 return 0.0
             }
             return cost
-        }
-        else
-        {
+        } else {
             return 0.0
         }
     }
 
-    fun findRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn : Double, showVisited : Boolean): List<Long> {
-        if (isContracted)
-        {
-            return findContractedRoute(start,end,accidentsPerKilometre,accidentsPerTurn,showVisited)
-        }
-        else
-        {
-            return findRouteNonContracted(start,end,accidentsPerKilometre,accidentsPerTurn)
+    fun findRoute(
+        latitudeOne: Double,
+        longitudeOne: Double,
+        latitudeTwo: Double,
+        longitudeTwo: Double,
+        accidentsPerKilometre: Double,
+        accidentsPerTurn: Double,
+        showVisited: Boolean
+    ): List<Long> {
+        return findRoute(
+            getNearestNode(latitudeOne, longitudeOne),
+            getNearestNode(latitudeTwo, longitudeTwo),
+            accidentsPerKilometre,
+            accidentsPerTurn,
+            showVisited
+        )
+    }
+
+    fun findRoute(
+        start: Long,
+        end: Long,
+        accidentsPerKilometre: Double,
+        accidentsPerTurn: Double,
+        showVisited: Boolean
+    ): List<Long> {
+        if (contractedGraphs.containsKey(accidentsPerKilometre) && accidentsPerTurn == 0.0) {
+            return findContractedRoute(start, end, accidentsPerKilometre, showVisited)
+        } else {
+            return findRouteNonContracted(start, end, accidentsPerKilometre, accidentsPerTurn)
         }
     }
+
     /**
      * Bidirectional Dijkstra on the contracted Graph
      */
-    private fun findContractedRoute(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn: Double, showVisited : Boolean): List<Long> {
-       return contractedGraph.findRoute(start,end,this, showVisited)
+    private fun findContractedRoute(
+        start: Long,
+        end: Long,
+        accidentsPerKilometre: Double,
+        showVisited: Boolean
+    ): List<Long> {
+        return contractedGraphs[accidentsPerKilometre]!!.findRoute(start, end, this, showVisited)
     }
+
     /**
      * Basic dijkstra
      */
-    private fun calculateRoute(start : Long, end : Long, accidentsPerKilometre: Double,accidentsPerTurn: Double ) : Pair<MutableList<Long>,Double>
-    {
+    private fun calculateRoute(
+        start: Long,
+        end: Long,
+        accidentsPerKilometre: Double,
+        accidentsPerTurn: Double
+    ): Pair<MutableList<Long>, Double> {
         val F = PriorityQueue<DoubleTuple>()
         val dist = HashMap<Long, Double>()
         val prev = HashMap<Long, Long>()
         dist[start] = 0.0
         prev[start] = -1
         var u: Long
-        val toAdd = DoubleTuple(start,0.0)
+        val toAdd = DoubleTuple(start, 0.0)
         F.add(toAdd)
         while (F.size != 0) {
             u = F.poll().id
             if (u == end) {
                 println(dist[end])
-                return Pair(solution(end, prev),dist[end]!!)
+                return Pair(solution(end, prev), dist[end]!!)
             }
             for (neighbour in vertices[u]?.connections!!) {
                 var alt = dist[u]?.plus(vertices[neighbour]?.weight!!)
-                alt = alt?.plus(getDistance(u,neighbour)*accidentsPerKilometre)
-                alt = alt?.plus(getTurnCost(prev[u]!!,u,neighbour,accidentsPerTurn))
+                alt = alt?.plus(getDistance(u, neighbour) * accidentsPerKilometre)
+                alt = alt?.plus(getTurnCost(prev[u]!!, u, neighbour, accidentsPerTurn))
                 if (alt != null) {
                     if (!dist.containsKey(neighbour) || alt < dist[neighbour]!!) {
                         dist[neighbour] = alt
                         prev[neighbour] = u
-                        val toAdd = DoubleTuple(neighbour,dist[neighbour]!!)
+                        val toAdd = DoubleTuple(neighbour, dist[neighbour]!!)
                         F.add(toAdd)
                     }
                 }
@@ -266,13 +287,18 @@ class GeographicGraph {
         }
         throw InvalidParameterException()
     }
-    fun findRouteNonContracted(start: Long,end: Long,accidentsPerKilometre: Double,accidentsPerTurn: Double) : MutableList<Long>
-    {
-        return calculateRoute(start,end,accidentsPerKilometre,accidentsPerTurn).first
+
+    fun findRouteNonContracted(
+        start: Long,
+        end: Long,
+        accidentsPerKilometre: Double,
+        accidentsPerTurn: Double
+    ): MutableList<Long> {
+        return calculateRoute(start, end, accidentsPerKilometre, accidentsPerTurn).first
     }
-     fun routeCost(start : Long, end : Long, accidentsPerKilometre: Double,accidentsPerTurn: Double ) : Double
-    {
-        return calculateRoute(start,end,accidentsPerKilometre,accidentsPerTurn).second
+
+    fun routeCost(start: Long, end: Long, accidentsPerKilometre: Double, accidentsPerTurn: Double): Double {
+        return calculateRoute(start, end, accidentsPerKilometre, accidentsPerTurn).second
     }
 }
 
