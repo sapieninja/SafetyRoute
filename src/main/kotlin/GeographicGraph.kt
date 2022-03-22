@@ -104,7 +104,6 @@ class GeographicGraph {
         } catch (e: NoSuchElementException) {
             //If this happens the coordinates are very far from the nearest node, so a appropriate node cannot be found.
             //Therefore an error should be thrown
-            println("error")
             throw InvalidParameterException()
         }
     }

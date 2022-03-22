@@ -10,6 +10,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
+import java.security.InvalidParameterException
 
 
 //TODO implement contraction hierachies for hopeful speedup
@@ -76,8 +77,7 @@ fun getMapObject(): OpenStreetMap {
             } catch (e: FileNotFoundException) {
                 println("File not found please try a different file")
                 continue
-            } catch (e: DocumentException)
-            {
+            } catch (e: DocumentException) {
                 println("File is not of the right type, please fix or try a different file")
                 continue
             }
@@ -126,14 +126,28 @@ fun main(args: Array<String>) {
                     print("Coordinate Two:")
                     val coordinateTwo = readln()
                     val latOne = coordinateOne.split(",")[0].toDouble()
-                    val longOne= coordinateOne.split(",")[1].toDouble()
+                    val longOne = coordinateOne.split(",")[1].toDouble()
                     val latTwo = coordinateTwo.split(",")[0].toDouble()
-                    val longTwo= coordinateTwo.split(",")[1].toDouble()
+                    val longTwo = coordinateTwo.split(",")[1].toDouble()
                     val startTime = System.nanoTime()
-                    gpx=writeNewTrack(map.cyclableGraph.findRoute(latOne,longOne,latTwo,longTwo,distanceCost,turnCost,false), map.cyclableGraph, gpx)
+                    gpx = writeNewTrack(
+                        map.cyclableGraph.findRoute(
+                            latOne,
+                            longOne,
+                            latTwo,
+                            longTwo,
+                            distanceCost,
+                            turnCost,
+                            false
+                        ), map.cyclableGraph, gpx
+                    )
                     val endTime = System.nanoTime()
-                    println("Route finding completed in ${(endTime-startTime)/(1000000000.0)}")
-                } catch(e : NumberFormatException){
+                    println("Route finding completed in ${(endTime - startTime) / (1000000000.0)}")
+                } catch (e: NumberFormatException) {
+                    continue
+                } catch (e: InvalidParameterException)
+                {
+                    println("Check your coordinates")
                     continue
                 }
             }
@@ -144,17 +158,20 @@ fun main(args: Array<String>) {
                     print("Turn Cost:")
                     val turnCost = readln().toDouble()
                     val first = map.cyclableGraph.getRandomId()
-                    val second= map.cyclableGraph.getRandomId()
+                    val second = map.cyclableGraph.getRandomId()
                     val startTime = System.nanoTime()
-                    gpx=writeNewTrack(map.cyclableGraph.findRoute(first,second,distanceCost,turnCost,false), map.cyclableGraph, gpx)
+                    gpx = writeNewTrack(
+                        map.cyclableGraph.findRoute(first, second, distanceCost, turnCost, false),
+                        map.cyclableGraph,
+                        gpx
+                    )
                     val endTime = System.nanoTime()
-                    println("Route finding completed in ${(endTime-startTime)/(1000000000.0)}")
-                } catch(e : NumberFormatException){
+                    println("Route finding completed in ${(endTime - startTime) / (1000000000.0)}")
+                } catch (e: NumberFormatException) {
                     continue
                 }
             }
-            "t" ->
-            {
+            "t" -> {
                 val first = 68248591L
                 val second = 117869324L
                 print("Distance Cost:")
@@ -162,17 +179,15 @@ fun main(args: Array<String>) {
                 print("Turn Cost:")
                 val turnCost = readln().toDouble()
                 val startTime = System.nanoTime()
-                for (i in 1..100)
-                    map.cyclableGraph.findRoute(first,second,distanceCost,turnCost,false)
+                for (i in 1..100) map.cyclableGraph.findRoute(first, second, distanceCost, turnCost, false)
                 val endTime = System.nanoTime()
-                println("Route finding completed in average time of ${(endTime-startTime)/(1000000000.0*100.0)}")
+                println("Route finding completed in average time of ${(endTime - startTime) / (1000000000.0 * 100.0)}")
             }
         }
     }
     print("Do you want to save the GPX file (y):")
-    if (readln() == "y")
-    {
+    if (readln() == "y") {
         print("Filename:")
-        GPX.write(gpx,Path.of(readln()))
+        GPX.write(gpx, Path.of(readln()))
     }
 }
