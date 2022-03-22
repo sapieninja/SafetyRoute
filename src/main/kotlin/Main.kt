@@ -59,7 +59,9 @@ fun getMapObject(): OpenStreetMap {
         if (input == "p") {
             try {
                 map = readMapFromDisk(filename)
-                map.cyclableGraph.setup()
+                println("Loaded map corresponding to ${map.filename}")
+                println("This map has contractions for ${map.cyclableGraph.contractedGraphs.keys}")
+                map.cyclableGraph.setupRTree()
             } catch (e: FileNotFoundException) {
                 println("File not found please try a different file")
                 continue
@@ -67,7 +69,7 @@ fun getMapObject(): OpenStreetMap {
                 println("File is not of the right type, please fix or try a different file")
                 continue
             }
-            map.cyclableGraph.setup() //re establish R*Tree
+            map.cyclableGraph.setupRTree() //re establish R*Tree
             break
         }
         if (input == "o") {
@@ -155,6 +157,7 @@ fun main(args: Array<String>) {
             }
             "t" ->
             {
+                //repeated query path between 2 far away nodes and record the average time difference
                 val first = 68248591L
                 val second = 117869324L
                 print("Distance Cost:")

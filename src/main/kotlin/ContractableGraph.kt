@@ -43,12 +43,9 @@ class ContractableGraph(private var distanceCost: Double) {
             {
                 vertices[vertice.key]!!.connections[connection] = inputGraph.routeCost(vertice.key,connection,distanceCost,0.0)
             }
-        }
-        for (vertice in inputGraph.vertices)
-        {
-            for (connection in vertice.value.connections)
+            for (incoming in vertice.value.incomingConnections)
             {
-                vertices[connection]!!.incomingConnections[vertice.key] = inputGraph.routeCost(vertice.key,connection,distanceCost,0.0)
+                vertices[vertice.key]!!.incomingConnections[incoming] = inputGraph.routeCost(incoming,vertice.key,distanceCost,0.0)
             }
         }
     }

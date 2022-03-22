@@ -1,6 +1,5 @@
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.TestInstance
-import java.util.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class GeographicGraphTest {
@@ -43,14 +42,14 @@ internal class GeographicGraphTest {
 
     @org.junit.jupiter.api.Test
     fun getDistance() {
-        assertEquals(testGraph.getDistance(173711674, 5222626957), 26.34972872449454)
+        assertEquals(testGraph.getDistanceCost(173711674, 5222626957), 26.34972872449454)
         assertEquals(testGraph.getDistance(0.01, 51.0, 0.0, 51.0), 0.6997723466506964)
     }
 
     @org.junit.jupiter.api.Test
     fun pruneDisconnected() {
         val size = testGraph.vertices.size
-        testGraph.pruneDisconnected(5222626957)
+        testGraph.pruneDisconnected()
         assertEquals(size, testGraph.vertices.size)//everything should already have been pruned that can be pruned
     }
 
@@ -64,7 +63,7 @@ internal class GeographicGraphTest {
         var route = testGraph.findRoute(68317710, 1939558649, 10.0, 10.0, false)
         var distance = 0.0
         for (i in 1..(route.size - 1))
-            distance += testGraph.getDistance(route[i - 1], route[i])
+            distance += testGraph.getDistanceCost(route[i - 1], route[i])
         assertEquals(17.81661650553658, distance)
     }
 }

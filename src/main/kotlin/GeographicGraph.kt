@@ -11,6 +11,7 @@ import java.security.InvalidParameterException
 import java.util.*
 import kotlin.NoSuchElementException
 import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.math.*
 
 
@@ -35,10 +36,11 @@ class GeographicGraph {
     class GeographicNode(val longitude: Double, val latitude: Double) {
         var weight: Double = 0.0
         var connections = HashSet<Long>()
+        var incomingConnections = HashSet<Long>()
     }
 
-    //This would be the init method but some things are configured externally first
-    fun setup() {
+    //This would be in the init method but some things are configured externally first
+    fun setupRTree() {
         if (nodeTree.size() != 0) {
             return
         }
@@ -58,8 +60,10 @@ class GeographicGraph {
         val geographicSecond = vertices[second]
         if (geographicFirst != null && geographicSecond != null) {
             vertices[first]?.connections?.add(second)
+            vertices[second]?.incomingConnections?.add(first)
             if (!oneWay) {
                 vertices[second]?.connections?.add(first)
+                vertices[first]?.incomingConnections?.add(second)
             }
         }
     }
@@ -97,14 +101,13 @@ class GeographicGraph {
      * and uses these to find the id of the nearest node
      */
     private fun getNearestNode(latitude: Double, longitude: Double): Long {
-        val closestNodeObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.001, 1)
+        val closestNodeObserver = nodeTree.nearest(Geometries.point(longitude, latitude), 0.005, 1)
         try {
             val closestNode = closestNodeObserver.first()
             return closestNode.value()
         } catch (e: NoSuchElementException) {
             //If this happens the coordinates are very far from the nearest node, so a appropriate node cannot be found.
             //Therefore an error should be thrown
-            println("error")
             throw InvalidParameterException()
         }
     }
@@ -119,7 +122,7 @@ class GeographicGraph {
         return route.asReversed()
     }
 
-    fun getDistance(idOne: Long, idTwo: Long): Double {
+    fun getDistanceCost(idOne: Long, idTwo: Long): Double {
         val first = vertices[idOne]
         val second = vertices[idTwo]
         val lonOne = first?.longitude!!
@@ -151,23 +154,63 @@ class GeographicGraph {
         return earthRadiusKm * c
     }
 
-    fun pruneDisconnected(start: Long) {
-        val visited = HashSet<Long>()
-        val toVisit = PriorityQueue<Long>()
-        toVisit.add(start)
-        while (toVisit.size != 0) {
-            val i = toVisit.poll()
-            visited.add(i)
-            for (x in vertices[i]?.connections!!) {
-                if (!visited.contains(x)) {
-                    toVisit.add(x)
+    /**
+     * Finds the largest strongly connnected component and deletes all other vertices
+     * This can be done using kosaraju's algorithm
+     */
+    fun pruneDisconnected() {
+        fun getPostOrderTraversal(vertice : Long, visited : HashSet<Long>, getNeighbours : (Long) -> HashSet<Long>): Stack<Long> {
+            var searchStack = Stack<Long>()
+            var postOrderStack = Stack<Long>()
+            searchStack.add(vertice)
+            while (searchStack.size != 0)
+            {
+                var current = searchStack.pop()
+                if (!visited.contains(current))
+                {
+                    visited.add(current)
+                    postOrderStack.push(current)
+                    for (neighbour in getNeighbours(current))
+                    {
+                        searchStack.push(neighbour)
+                    }
+                }
+            }
+            return postOrderStack
+        }
+        var visited = HashSet<Long>()
+        val L = LinkedList<Long>()
+        for (vertice in vertices)
+        {
+            for (item in getPostOrderTraversal(vertice.key,visited) { id -> vertices[id]!!.connections })
+            {
+                L.addFirst(item)
+            }
+        }
+        visited = HashSet<Long>()
+        val components = HashMap<Long, HashSet<Long>>()
+        for (vertice in L)
+        {
+            var postOrder = getPostOrderTraversal(vertice,visited) { id -> vertices[id]!!.incomingConnections }
+            if (postOrder.size != 0)
+            {
+                components[vertice] = HashSet<Long>()
+                for (item in postOrder)
+                {
+                    components[vertice]?.add(item)
                 }
             }
         }
+        val mainComponent = components.maxByOrNull { component -> component.value.size }!!
         val before = vertices.size
-        vertices = vertices.filter { item -> visited.contains(item.key) } as HashMap<Long, GeographicNode>
+        vertices = vertices.filter { item -> mainComponent.value.contains(item.key) } as HashMap<Long, GeographicNode>
         val after = vertices.size
         println("Shrunk vertices from $before to $after")
+        for (vertice in vertices.values)
+        {
+            vertice.connections = vertice.connections.filter { id -> vertices.containsKey(id) }.toHashSet()
+            vertice.incomingConnections = vertice.incomingConnections.filter { id -> vertices.containsKey(id)}.toHashSet()
+        }
     }
 
     /**
@@ -189,9 +232,9 @@ class GeographicGraph {
     fun getTurnCost(prev: Long, current: Long, next: Long, cost: Double): Double {
         if (cost == 0.0) return 0.0
         if (prev.toInt() == -1) return 0.0
-        val a = getDistance(prev, next)
-        val b = getDistance(prev, current)
-        val c = getDistance(current, next)
+        val a = getDistanceCost(prev, next)
+        val b = getDistanceCost(prev, current)
+        val c = getDistanceCost(current, next)
         val angle = Math.toDegrees(acos((b.pow(2) + c.pow(2) - a.pow(2)) / (2 * b * c)))
         if (angle < 115.0) {
             if (safeNodes.contains(current) && !slowNodes.contains(current)) //if node is part of a cycle lane, but not part of a footpath turns are acceptable
@@ -273,7 +316,7 @@ class GeographicGraph {
             }
             for (neighbour in vertices[u]?.connections!!) {
                 var alt = dist[u]?.plus(vertices[neighbour]?.weight!!)
-                alt = alt?.plus(getDistance(u, neighbour) * accidentsPerKilometre)
+                alt = alt?.plus(getDistanceCost(u, neighbour) * accidentsPerKilometre)
                 alt = alt?.plus(getTurnCost(prev[u]!!, u, neighbour, accidentsPerTurn))
                 if (alt != null) {
                     if (!dist.containsKey(neighbour) || alt < dist[neighbour]!!) {
