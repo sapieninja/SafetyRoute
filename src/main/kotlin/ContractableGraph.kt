@@ -328,11 +328,4 @@ class ContractableGraph(private var distanceCost: Double) {
         return count
     }
 
-    /**
-     * Just a standard dijkstra implementation
-     */
-    private fun isShortest(from: Long, by: Long, to: Long, inputGraph: GeographicGraph): Boolean {
-        val route = inputGraph.findRouteNonContracted(from, to, distanceCost, 0.0)
-        return route.contains(by)
-    }
 }

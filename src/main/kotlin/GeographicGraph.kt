@@ -307,7 +307,9 @@ class GeographicGraph {
         val toAdd = DoubleTuple(start, 0.0)
         F.add(toAdd)
         while (F.size != 0) {
-            u = F.poll().id
+            val item = F.poll()
+            u = item.id
+            if (dist[u] != item.dist) continue
             if (u == end) {
                 return Pair(solution(end, prev), dist[end]!!)
             }
