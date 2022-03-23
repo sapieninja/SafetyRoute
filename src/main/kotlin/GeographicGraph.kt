@@ -82,12 +82,10 @@ class GeographicGraph {
             val severity = parsedAccident[2] as String
             try {
                 val additionNode = vertices[getNearestNode(latitude, longitude)]!!
-                if (additionNode != null) {
-                    when (severity) {
-                        "Slight" -> additionNode.weight += 1
-                        "Severe" -> additionNode.weight += 2
-                        "Fatal" -> additionNode.weight += 3
-                    }
+                when (severity) {
+                    "Slight" -> additionNode.weight += 1
+                    "Severe" -> additionNode.weight += 2
+                    "Fatal" -> additionNode.weight += 3
                 }
             } catch (e: InvalidParameterException) {
                 //In this case we can still apply all the other accidents, even if this accident doesn't match well.
