@@ -66,7 +66,7 @@ fun getMapObject(): OpenStreetMap {
             } catch (e: FileNotFoundException) {
                 println("File not found please try a different file")
                 continue
-            } catch (e: DocumentException) {
+            } catch (e: java.lang.Exception) {
                 println("File is not of the right type, please fix or try a different file")
                 continue
             }

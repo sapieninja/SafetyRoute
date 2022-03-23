@@ -67,9 +67,10 @@ class ContractableGraph(private var distanceCost: Double) {
             val current = Q.poll()
             upwardsSpace.add(current)
             for (neighbour in vertices[current]!!.allOutgoingConnections) {
-                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !upwardsSpace.contains(neighbour)) Q.add(
-                    neighbour
-                )
+                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !upwardsSpace.contains(neighbour))
+                {
+                    Q.add(neighbour)
+                }
             }
         }
         Q.add(to)
@@ -77,9 +78,9 @@ class ContractableGraph(private var distanceCost: Double) {
             val current = Q.poll()
             downSpace.add(current)
             for (neighbour in vertices[current]!!.allOutgoingConnections) {
-                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !downSpace.contains(neighbour)) Q.add(
-                    neighbour
-                )
+                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !downSpace.contains(neighbour)) {
+                    Q.add(neighbour)
+                }
             }
         }
         var F = PriorityQueue<DoubleTuple>()
@@ -91,7 +92,9 @@ class ContractableGraph(private var distanceCost: Double) {
         dist[from] = 0.0
         F.add(toAdd)
         while (F.size != 0) {
-            u = F.poll().id
+            val item = F.poll()
+            u = item.id
+            if (dist[u] != item.dist) continue
             settledFrom.add(u)
             for (neighbour in vertices[u]!!.allOutgoingConnections) {
                 if (!upwardsSpace.contains(neighbour)) continue
@@ -115,7 +118,9 @@ class ContractableGraph(private var distanceCost: Double) {
         toAdd = DoubleTuple(to, 0.0)
         F.add(toAdd)
         while (F.size != 0) {
-            u = F.poll().id
+            val item = F.poll()
+            u = item.id
+            if (distTo[u] != item.dist) continue
             settledTo.add(u)
             for (neighbour in vertices[u]!!.allIncomingConnections) {
                 if (!downSpace.contains(neighbour)) continue
@@ -270,7 +275,9 @@ class ContractableGraph(private var distanceCost: Double) {
         var toAdd = DoubleTuple(from, 0.0)
         F.add(toAdd)
         while (F.size != 0) {
-            u = F.poll().id
+            val item = F.poll()
+            u = item.id
+            if (dist[u] != item.dist) continue
             toFind.remove(u)
             numsettled += 1
             for (neighbour in vertices[u]!!.connections.keys) {
