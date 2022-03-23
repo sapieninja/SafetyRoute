@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.json.JSONArray
 import java.io.File
+import java.math.BigDecimal
 import java.security.InvalidParameterException
 import java.util.*
 import kotlin.NoSuchElementException
@@ -74,11 +75,11 @@ class GeographicGraph {
     fun gatherWeights() {
         val accidentFile = File("output.json")
         val accidents = JSONArray(accidentFile.inputStream().readBytes().toString(Charsets.UTF_8))
-        for (accident in accidents) {
-            val parsedAccident = accident.toString().split(",")//hacky but will work
-            val latitude: Double = parsedAccident[0].substring(1).toDouble()
-            val longitude: Double = parsedAccident[1].toDouble()
-            val severity = parsedAccident[2].substring(1, parsedAccident[2].length - 2)
+        for (accident  in accidents) {
+            val parsedAccident = accident as JSONArray
+            val latitude: Double = (parsedAccident[0] as BigDecimal).toDouble()
+            val longitude: Double = (parsedAccident[1] as BigDecimal).toDouble()
+            val severity = parsedAccident[2] as String
             try {
                 val additionNode = vertices[getNearestNode(latitude, longitude)]!!
                 if (additionNode != null) {
