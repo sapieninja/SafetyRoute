@@ -106,8 +106,8 @@ class OpenStreetMap constructor(val filename: String) {
             }
         }
         if (note == "towpath") return
-        if (disallowedAccess.contains(access)) return
-        if (disallowedAccess.contains(bicycle)) return
+        if (disallowedAccess.contains(access) && bicycle != "yes" && highwayType != "pedestrian") return
+        if (disallowedAccess.contains(bicycle) && highwayType != "pedestrian") return
         if (disallowedSurfaces.contains(surface)) return
         if (!acceptedRoads.contains(highwayType)) return
         if (towpath == "yes") return

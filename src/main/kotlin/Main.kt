@@ -91,6 +91,23 @@ fun getMapObject(): OpenStreetMap {
 
 @OptIn(ExperimentalSerializationApi::class)
 fun main(args: Array<String>) {
+    fun getDouble(prompt : String, default : Double) : Double
+    {
+        var distanceCost = -1.0
+        while (distanceCost < 0) {
+            try {
+                print(prompt)
+                val input = readln()
+                if (input == "d"){
+                    return default
+                }
+                distanceCost = input.toDouble()
+            } catch (e: NumberFormatException){
+                continue
+            }
+        }
+        return distanceCost
+    }
     var gpx = GPX.builder().build()
     val map = getMapObject()
     while (true) {
@@ -109,9 +126,8 @@ fun main(args: Array<String>) {
                 }
             }
             "c" -> {
-                print("Distance Cost:")
                 try {
-                    val distanceCost = readln().toDouble()
+                    val distanceCost = getDouble("Distance cost (d for default):",15.0)
                     map.cyclableGraph.contractGraph(distanceCost)
                 } catch (e: NumberFormatException) {
                     continue
@@ -119,10 +135,8 @@ fun main(args: Array<String>) {
             }
             "r" -> {
                 try {
-                    print("Distance Cost:")
-                    val distanceCost = readln().toDouble()
-                    print("Turn Cost:")
-                    val turnCost = readln().toDouble()
+                    val distanceCost = getDouble("Distance cost (d for default):",15.0)
+                    val turnCost = getDouble("Turn cost (d for default):",10.0)
                     print("Coordinate One:")
                     val coordinateOne = readln()
                     print("Coordinate Two:")
@@ -155,10 +169,8 @@ fun main(args: Array<String>) {
             }
             "rr" -> {
                 try {
-                    print("Distance Cost:")
-                    val distanceCost = readln().toDouble()
-                    print("Turn Cost:")
-                    val turnCost = readln().toDouble()
+                    val distanceCost = getDouble("Distance cost (d for default):",15.0)
+                    val turnCost = getDouble("Turn cost (d for default):",10.0)
                     val first = map.cyclableGraph.getRandomId()
                     val second = map.cyclableGraph.getRandomId()
                     val startTime = System.nanoTime()
@@ -177,10 +189,8 @@ fun main(args: Array<String>) {
                 //repeated query path between 2 far away nodes and record the average time difference
                 val first = 68248591L
                 val second = 117869324L
-                print("Distance Cost:")
-                val distanceCost = readln().toDouble()
-                print("Turn Cost:")
-                val turnCost = readln().toDouble()
+                val distanceCost = getDouble("Distance cost (d for default):",15.0)
+                val turnCost = getDouble("Turn cost (d for default):",15.0)
                 val startTime = System.nanoTime()
                 for (i in 1..100) map.cyclableGraph.findRoute(first, second, distanceCost, turnCost, false)
                 val endTime = System.nanoTime()

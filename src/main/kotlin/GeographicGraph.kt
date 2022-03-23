@@ -83,7 +83,6 @@ class GeographicGraph {
                 val additionNode = vertices[getNearestNode(latitude, longitude)]!!
                 if (additionNode != null) {
                     when (severity) {
-
                         "Slight" -> additionNode.weight += 1
                         "Severe" -> additionNode.weight += 2
                         "Fatal" -> additionNode.weight += 3
@@ -159,9 +158,9 @@ class GeographicGraph {
      * This can be done using kosaraju's algorithm
      */
     fun pruneDisconnected() {
-        fun getPostOrderTraversal(vertice : Long, visited : HashSet<Long>, getNeighbours : (Long) -> HashSet<Long>): Stack<Long> {
+        fun getPostOrderTraversal(vertice : Long, visited : HashSet<Long>, getNeighbours : (Long) -> HashSet<Long>): List<Long> {
             var searchStack = Stack<Long>()
-            var postOrderStack = Stack<Long>()
+            var postOrder = LinkedList<Long>()
             searchStack.add(vertice)
             while (searchStack.size != 0)
             {
@@ -169,14 +168,14 @@ class GeographicGraph {
                 if (!visited.contains(current))
                 {
                     visited.add(current)
-                    postOrderStack.push(current)
+                    postOrder.add(current)
                     for (neighbour in getNeighbours(current))
                     {
                         searchStack.push(neighbour)
                     }
                 }
             }
-            return postOrderStack
+            return postOrder
         }
         var visited = HashSet<Long>()
         val L = LinkedList<Long>()
@@ -311,7 +310,6 @@ class GeographicGraph {
         while (F.size != 0) {
             u = F.poll().id
             if (u == end) {
-                println(dist[end])
                 return Pair(solution(end, prev), dist[end]!!)
             }
             for (neighbour in vertices[u]?.connections!!) {
