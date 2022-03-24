@@ -39,13 +39,13 @@ class ContractableGraph(private var distanceCost: Double) {
         println("Creating Graph")
         for (vertice in inputGraph.vertices) {
             vertices[vertice.key] = ContractableNode(vertice.key)
-            for (connection in vertice.value.connections)
-            {
-                vertices[vertice.key]!!.connections[connection] = inputGraph.routeCost(vertice.key,connection,distanceCost,0.0)
+            for (connection in vertice.value.connections) {
+                vertices[vertice.key]!!.connections[connection] =
+                    inputGraph.routeCost(vertice.key, connection, distanceCost, 0.0)
             }
-            for (incoming in vertice.value.incomingConnections)
-            {
-                vertices[vertice.key]!!.incomingConnections[incoming] = inputGraph.routeCost(incoming,vertice.key,distanceCost,0.0)
+            for (incoming in vertice.value.incomingConnections) {
+                vertices[vertice.key]!!.incomingConnections[incoming] =
+                    inputGraph.routeCost(incoming, vertice.key, distanceCost, 0.0)
             }
         }
     }
@@ -55,7 +55,7 @@ class ContractableGraph(private var distanceCost: Double) {
      * First the set of nodes with a higher hierarchy from the from node are calculated
      * Then the set of nodes with a higher hierachy from the to node (backwards) are calculated
      * Then the intersection of the set of settled nodes is found and the minimum found.
-     * Then the route is created by recursively looking up the shortcuts
+     * Then the route is created by iteratively looking up the shortcuts
      */
     fun findRoute(from: Long, to: Long, inputGraph: GeographicGraph, showVisited: Boolean): List<Long> {
         //first we generate the upwards and downwards search spaces using simple queues
@@ -67,8 +67,7 @@ class ContractableGraph(private var distanceCost: Double) {
             val current = Q.poll()
             upwardsSpace.add(current)
             for (neighbour in vertices[current]!!.allOutgoingConnections) {
-                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !upwardsSpace.contains(neighbour))
-                {
+                if (vertices[neighbour]!!.hierachy > vertices[current]!!.hierachy && !upwardsSpace.contains(neighbour)) {
                     Q.add(neighbour)
                 }
             }
@@ -206,12 +205,12 @@ class ContractableGraph(private var distanceCost: Double) {
                 count = 0
             }
             val next = contractionQueue.poll()
-            val oldEdges = next.dist
-            val newEdges = getHeuristicValue(next.id, inputGraph)
+            val oldHeuristic = next.dist
+            val newHeuristic = getHeuristicValue(next.id, inputGraph)
 
-            if (oldEdges != newEdges) {
+            if (oldHeuristic != newHeuristic) {
                 count += 1
-                contractionQueue.add(IntTuple(next.id, newEdges))
+                contractionQueue.add(IntTuple(next.id, newHeuristic))
                 continue
             } else {
                 count = 0
@@ -221,6 +220,7 @@ class ContractableGraph(private var distanceCost: Double) {
             println("There are ${contractionQueue.size} nodes left to contract")
         }
         println("Contraction finished")
+        //work out the unions now so the program doesn't have to later when route finding
         for (vertice in vertices) {
             vertice.value.allOutgoingConnections =
                 vertice.value.shortcutConnections.keys.union(vertice.value.connections.keys).toList()
@@ -261,7 +261,12 @@ class ContractableGraph(private var distanceCost: Double) {
      * The estimation feature enables faster estimations of edge differences by terminating the search after a given number of nodes,
      * but can be disabled for the real contraction operation
      */
-    private fun getShortest(from: Long, about: Long, inputGraph: GeographicGraph, estimation: Boolean): MutableList<Long> {
+    private fun getShortest(
+        from: Long,
+        about: Long,
+        inputGraph: GeographicGraph,
+        estimation: Boolean
+    ): MutableList<Long> {
         val toFind = vertices[about]!!.connections.keys.union(vertices[about]!!.shortcutConnections.keys)
             .filter { x -> !vertices[x]!!.deleted }.toHashSet()
         HashSet<Long>()
@@ -325,14 +330,7 @@ class ContractableGraph(private var distanceCost: Double) {
                 )
             )
         )).filter { x -> !vertices[x]!!.deleted }.size
-        count += (nodeObj.incomingConnections.keys.union(
-            nodeObj.incomingShortcuts.keys.union(
-                nodeObj.connections.keys.union(
-                    nodeObj.shortcutConnections.keys
-                )
-            )
-        )).filter { x -> vertices[x]!!.deleted }.size * 5//maintains uniformity
+        count += (nodeObj.incomingConnections.keys.union(nodeObj.connections.keys)).count { x -> vertices[x]!!.deleted }//maintains uniformity
         return count
     }
-
 }

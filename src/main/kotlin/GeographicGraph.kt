@@ -31,7 +31,7 @@ class GeographicGraph {
     var contractedGraphs = HashMap<Double, ContractableGraph>()
 
     @Transient
-    var nodeTree: RTree<Long, Geometry> = RTree.star().maxChildren(30).create()
+    var nodeTree: RTree<Long, Geometry>  = RTree.star().maxChildren(30).create()
 
     @Serializable
     class GeographicNode(val longitude: Double, val latitude: Double) {
@@ -50,6 +50,7 @@ class GeographicGraph {
             nodeList.add(Entries.entry(node.key, Geometries.point(node.value.longitude, node.value.latitude)))
         }
         nodeTree = RTree.star().maxChildren(28).create(nodeList)
+
     }
 
     fun getRandomId(): Long {
@@ -235,7 +236,7 @@ class GeographicGraph {
         val c = getDistanceCost(current, next)
         val angle = Math.toDegrees(acos((b.pow(2) + c.pow(2) - a.pow(2)) / (2 * b * c)))
         if (angle < 115.0) {
-            if (safeNodes.contains(current) && !slowNodes.contains(current)) //if node is part of a cycle lane, but not part of a footpath turns are acceptable
+            if (safeNodes.contains(current) || safeNodes.contains(prev) || safeNodes.contains(next) && !slowNodes.contains(current)) //if node is part of a cycle lane, but not part of a footpath turns are acceptable
             {
                 return 0.0
             }
@@ -245,6 +246,9 @@ class GeographicGraph {
         }
     }
 
+    /**
+     * Overload for findRoute that allows input with coordinates instead of node ids
+     */
     fun findRoute(
         latitudeOne: Double,
         longitudeOne: Double,

@@ -30,7 +30,7 @@ dependencies {
     implementation("org.dom4j:dom4j:2.1.3")
     implementation("io.jenetics:jpx:2.0.0")
     implementation("junit:junit:4.13.1")
-    implementation("org.junit.jupiter:junit-jupiter:5.8.1")
+    implementation("org.junit.jupiter:junit-jupiter:5.8.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:1.6.10")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.8.2")
 }

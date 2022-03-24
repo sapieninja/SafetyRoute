@@ -13,21 +13,6 @@ import java.nio.file.Path
 import java.security.InvalidParameterException
 
 
-//TODO implement contraction hierachies for hopeful speedup
-//TODO add a gui
-//TODO add location lookup
-//TODO check findroute logic
-@OptIn(ExperimentalSerializationApi::class)
-fun writeNewTrack(route: List<Long>, cyclableGraph: GeographicGraph, gpx: GPX): GPX {
-    var track: TrackSegment = TrackSegment.builder().build()
-    for (point in route) {
-        val node = cyclableGraph.vertices[point]
-        track = track.toBuilder().addPoint { p -> p.lon(node!!.longitude).lat(node.latitude) }.build()
-    }
-    val segment: Track = Track.builder().addSegment(track).build()
-    return gpx.toBuilder().addTrack(segment).build()
-}
-
 fun writeNewScatter(scatter: List<Long>, cyclableGraph: GeographicGraph, gpx: GPX): GPX {
     var workingGpx = gpx
     for (node in scatter) {
@@ -39,7 +24,18 @@ fun writeNewScatter(scatter: List<Long>, cyclableGraph: GeographicGraph, gpx: GP
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-fun writeObjectToDisk(filename: String, toWrite: OpenStreetMap) {
+fun writeNewTrack(route: List<Long>, cyclableGraph: GeographicGraph, gpx: GPX): GPX {
+    var track: TrackSegment = TrackSegment.builder().build()
+    for (point in route) {
+        val node = cyclableGraph.vertices[point]
+        track = track.toBuilder().addPoint { p -> p.lon(node!!.longitude).lat(node.latitude) }.build()
+    }
+    val segment: Track = Track.builder().addSegment(track).build()
+    return gpx.toBuilder().addTrack(segment).build()
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+fun writeMapToDisk(filename: String, toWrite: OpenStreetMap) {
     val saveFile = File(filename)
     saveFile.writeBytes(Cbor.encodeToByteArray(toWrite))
 }
@@ -99,6 +95,7 @@ fun main(args: Array<String>) {
                 print(prompt)
                 val input = readln()
                 if (input == "d"){
+                    println("Using default value of $default")
                     return default
                 }
                 distanceCost = input.toDouble()
@@ -120,14 +117,14 @@ fun main(args: Array<String>) {
                 print("Save file path:")
                 val filename = readln()
                 try {
-                    writeObjectToDisk(filename, map)
+                    writeMapToDisk(filename, map)
                 } catch (e: InvalidPathException) {
                     continue
                 }
             }
             "c" -> {
                 try {
-                    val distanceCost = getDouble("Distance cost (d for default):",15.0)
+                    val distanceCost = getDouble("Distance cost (d for default):",30.0)
                     map.cyclableGraph.contractGraph(distanceCost)
                 } catch (e: NumberFormatException) {
                     continue
@@ -135,8 +132,8 @@ fun main(args: Array<String>) {
             }
             "r" -> {
                 try {
-                    val distanceCost = getDouble("Distance cost (d for default):",15.0)
-                    val turnCost = getDouble("Turn cost (d for default):",10.0)
+                    val distanceCost = getDouble("Distance cost (d for default):",30.0)
+                    val turnCost = getDouble("Turn cost (d for default):",2.0)
                     print("Coordinate One:")
                     val coordinateOne = readln()
                     print("Coordinate Two:")
